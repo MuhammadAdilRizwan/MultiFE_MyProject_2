@@ -11,17 +11,21 @@ import {
   Globe2,
   Heart,
   Lock,
+  MapPin,
   PackageCheck,
+  Ruler,
+  Scissors,
   Search,
   Shirt,
   Sparkles,
+  Star,
   Store,
   Tag,
   Truck,
 } from "lucide-react";
 
 type Screen =
-  | "welcome"
+  | "landing"
   | "assisted"
   | "bodyScannerStart"
   | "bodyScannerMeasure"
@@ -264,6 +268,121 @@ const templateImageMap: Record<string, string> = {
 
 const templatePreviewImage = "/assets/template-preview-a-line-embroidered-kurti.png";
 
+type OutletAccent = "blue" | "orange" | "green" | "navy";
+
+type Outlet = {
+  id: string;
+  name: string;
+  tagline: string;
+  city: string;
+  area: string;
+  specialties: string[];
+  rating: number;
+  fabricsCount: number;
+  deliveryDays: string;
+  openNow: boolean;
+  accent: OutletAccent;
+};
+
+const outlets: Outlet[] = [
+  {
+    id: "al-rehman-fabrics",
+    name: "Al-Rehman Fabrics",
+    tagline: "Everyday lawn and cotton, stitched to your fit.",
+    city: "Lahore",
+    area: "Liberty Market",
+    specialties: ["Lawn", "Cotton", "Everyday"],
+    rating: 4.8,
+    fabricsCount: 120,
+    deliveryDays: "7–10 days",
+    openNow: true,
+    accent: "blue",
+  },
+  {
+    id: "noor-couture",
+    name: "Noor Couture",
+    tagline: "Bridal and festive wear with hand embroidery.",
+    city: "Karachi",
+    area: "Clifton",
+    specialties: ["Bridal", "Festive", "Embroidered"],
+    rating: 4.9,
+    fabricsCount: 85,
+    deliveryDays: "14–18 days",
+    openNow: true,
+    accent: "orange",
+  },
+  {
+    id: "zarya-studio",
+    name: "Zarya Studio",
+    tagline: "Modern pret and formal cuts for work and events.",
+    city: "Islamabad",
+    area: "F-7 Markaz",
+    specialties: ["Formal", "Pret", "Silk"],
+    rating: 4.7,
+    fabricsCount: 64,
+    deliveryDays: "8–12 days",
+    openNow: false,
+    accent: "navy",
+  },
+  {
+    id: "gulnaz-textiles",
+    name: "Gulnaz Textiles",
+    tagline: "Breathable summer fabrics at honest prices.",
+    city: "Faisalabad",
+    area: "Clock Tower",
+    specialties: ["Lawn", "Linen", "Everyday"],
+    rating: 4.6,
+    fabricsCount: 140,
+    deliveryDays: "6–9 days",
+    openNow: true,
+    accent: "green",
+  },
+  {
+    id: "mehrbano-atelier",
+    name: "Mehrbano Atelier",
+    tagline: "Statement festive outfits for Eid and weddings.",
+    city: "Lahore",
+    area: "Gulberg III",
+    specialties: ["Festive", "Bridal", "Organza"],
+    rating: 4.8,
+    fabricsCount: 72,
+    deliveryDays: "12–16 days",
+    openNow: true,
+    accent: "orange",
+  },
+  {
+    id: "rangrez-house",
+    name: "Rangrez House",
+    tagline: "Rich silk, velvet and khaddar for the cold season.",
+    city: "Multan",
+    area: "Hussain Agahi",
+    specialties: ["Winter", "Velvet", "Silk"],
+    rating: 4.7,
+    fabricsCount: 58,
+    deliveryDays: "9–13 days",
+    openNow: false,
+    accent: "blue",
+  },
+];
+
+const outletFilterOptions = ["All", "Lawn", "Festive", "Bridal", "Formal", "Winter"] as const;
+
+const outletAccentGradient: Record<OutletAccent, string> = {
+  blue: "linear-gradient(135deg, #06365A 0%, #0E7BC1 58%, #10B6D9 100%)",
+  orange: "linear-gradient(135deg, #F26A21 0%, #FF8A3D 100%)",
+  green: "linear-gradient(135deg, #5FAE3F 0%, #78BE43 100%)",
+  navy: "linear-gradient(135deg, #14213D 0%, #06365A 100%)",
+};
+
+function getOutletInitials(name: string) {
+  return name
+    .split(/[\s-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase())
+    .join("");
+}
+
 
 const CUSTOMIZATION_STORAGE_KEY = "multife_customization_selections";
 
@@ -382,10 +501,9 @@ function useSmoothImageWarmup(screen: Screen, selectedFabric: FabricItem, select
       templateImageMap[selectedTemplate.name],
     ];
 
-    if (screen === "welcome" || screen === "bodyScannerStart" || screen === "bodyScannerMeasure") {
+    if (screen === "landing" || screen === "bodyScannerStart" || screen === "bodyScannerMeasure") {
       warmupSources.push(
         `${import.meta.env.BASE_URL}assets/first-page-qr-code-page.png`,
-        "/assets/qr-code.png",
         "/assets/screen-02.png",
         "/assets/screen-02-workflow.png"
       );
@@ -413,7 +531,7 @@ function useSmoothImageWarmup(screen: Screen, selectedFabric: FabricItem, select
 
     // For customization screens, warm only the commonly reused selected previews first.
     if (
-      screen !== "welcome" &&
+      screen !== "landing" &&
       screen !== "assisted" &&
       screen !== "fabric" &&
       screen !== "fabricDetail" &&
@@ -860,84 +978,45 @@ function AppPolishStyles() {
         height: 15px !important;
       }
 
-      /* Welcome QR card fix: QR stays inside its own box, not stretched by global button image rules */
-      .app-ui .qr-start-card {
-        background: rgba(255, 255, 255, 0.96) !important;
+      /* Landing page */
+      .app-ui .landing-wordmark {
+        text-align: left;
       }
 
-      .app-ui .qr-start-card .qr-image-shell {
-        width: 142px !important;
-        height: 142px !important;
-        min-width: 142px !important;
-        max-width: 142px !important;
-        background: #ffffff !important;
+      .app-ui .landing-hero-art img {
+        animation: mf-image-reveal 420ms ease both;
       }
 
-      .app-ui .qr-start-card .welcome-qr-image {
-        width: 100% !important;
-        height: 100% !important;
-        max-width: 122px !important;
-        max-height: 122px !important;
-        object-fit: contain !important;
-        padding: 0 !important;
-        border-radius: 10px !important;
-        background: transparent !important;
-        filter: none !important;
+      .app-ui .outlet-card:hover .outlet-card-visit svg {
+        transform: translateX(2px);
       }
 
-      .app-ui.welcome-screen-content {
-        padding-top: 16px !important;
-        padding-bottom: 16px !important;
+      .app-ui .outlet-card .outlet-card-visit svg {
+        transition: transform 210ms cubic-bezier(0.22, 1, 0.36, 1);
       }
 
-      .app-ui .welcome-hero {
-        height: 250px !important;
-        margin-top: 8px !important;
+      .app-ui input[type="search"]::-webkit-search-cancel-button {
+        cursor: pointer;
       }
 
-      .app-ui .welcome-tagline {
-        margin-top: 0 !important;
-      }
+      @media (min-width: 768px) {
+        .app-ui .landing-hero h1 {
+          text-align: left;
+        }
 
-      .app-ui .welcome-qr-card {
-        margin-top: 16px !important;
-        padding-block: 12px !important;
-      }
-
-      .app-ui .welcome-qr-card .qr-image-shell {
-        width: 124px !important;
-        height: 124px !important;
-        min-width: 124px !important;
-        max-width: 124px !important;
-      }
-
-      .app-ui .welcome-qr-card .welcome-qr-image {
-        max-width: 108px !important;
-        max-height: 108px !important;
+        .app-ui .landing-hero h1::after {
+          margin-left: 0;
+        }
       }
 
       @media (max-width: 767px) {
-        .welcome-phone-frame {
+        .landing-phone-frame {
           height: auto !important;
         }
 
-        .welcome-phone-frame > div:last-child,
-        .welcome-phone-frame .welcome-screen-content {
+        .landing-phone-frame > div:last-child,
+        .landing-phone-frame .landing-content {
           height: auto !important;
-        }
-      }
-
-      @media (max-width: 390px) {
-        .app-ui .qr-start-card .qr-image-shell {
-          width: 132px !important;
-          height: 132px !important;
-          min-width: 132px !important;
-          max-width: 132px !important;
-        }
-
-        .app-ui .qr-start-card .welcome-qr-image {
-          max-width: 114px !important;
-          max-height: 114px !important;
         }
       }
 
@@ -1228,8 +1307,14 @@ function AppPolishStyles() {
 
 
 function App() {
-  const [screen, setScreen] = useState<Screen>("welcome");
+  const [screen, setScreen] = useState<Screen>("landing");
+  const [selectedOutletId, setSelectedOutletId] = useState<string | null>(null);
   const [selectedFabricName, setSelectedFabricName] = useState<string | null>(null);
+
+  const selectedOutlet = useMemo(
+    () => outlets.find((outlet) => outlet.id === selectedOutletId) ?? null,
+    [selectedOutletId]
+  );
   const [selectedTemplateName, setSelectedTemplateName] = useState<string | null>(null);
 
   const selectedFabric = useMemo(
@@ -1280,11 +1365,19 @@ function App() {
     <main className="app-shell min-h-screen bg-[radial-gradient(circle_at_top_left,#E7F8FF_0%,#FCFEFF_44%,#F6F2FF_100%)] px-6 py-8 text-[#14213D]">
       <AppPolishStyles />
       <section className="app-stage mx-auto flex min-h-[calc(100vh-64px)] max-w-7xl items-center justify-center">
-        {screen === "welcome" && <WelcomeScreen onNext={() => resetReviewReturnAndGo("assisted")} />}
+        {screen === "landing" && (
+          <LandingScreen
+            onSelectOutlet={(outletId) => {
+              setSelectedOutletId(outletId);
+              resetReviewReturnAndGo("assisted");
+            }}
+          />
+        )}
 
         {screen === "assisted" && (
           <AssistedScreen
-            onBack={() => resetReviewReturnAndGo("welcome")}
+            outlet={selectedOutlet}
+            onBack={() => resetReviewReturnAndGo("landing")}
             onContinue={() => resetReviewReturnAndGo("bodyScannerStart")}
           />
         )}
@@ -1305,6 +1398,7 @@ function App() {
 
         {screen === "fabric" && (
           <FabricLibraryScreen
+            outlet={selectedOutlet}
             selectedFabricName={selectedFabricName}
             onBack={() => goBackOrReturnToReview("bodyScannerMeasure")}
             onProceed={(fabricName) => {
@@ -1536,81 +1630,325 @@ function CompactBrandHeader() {
   );
 }
 
-function WelcomeScreen({ onNext }: { onNext: () => void }) {
+const landingSteps = [
+  { icon: Store, title: "Choose an outlet", text: "Pick a shop you love from the MultiFe network." },
+  { icon: Ruler, title: "Get measured", text: "Smart body scan, checked and adjusted by the shopkeeper." },
+  { icon: Scissors, title: "Design your outfit", text: "Select fabric, dress type, neckline, sleeves and more." },
+  { icon: PackageCheck, title: "Place your order", text: "Pay your way and track your stitched outfit." },
+] as const;
+
+function OutletCard({ outlet, onSelect }: { outlet: Outlet; onSelect: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="outlet-card group flex h-full w-full flex-col overflow-hidden rounded-[22px] border border-[#DDEBF2] bg-white text-left shadow-[0_12px_28px_rgba(6,27,58,0.07)] hover:border-[#0E7BC1]/40 hover:shadow-[0_16px_34px_rgba(14,123,193,0.13)]"
+      aria-label={`Visit ${outlet.name}, ${outlet.area}, ${outlet.city}`}
+    >
+      <div className="relative h-[78px] w-full shrink-0" style={{ background: outletAccentGradient[outlet.accent] }}>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_-20%,rgba(255,255,255,0.35),transparent_45%)]" />
+
+        <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-white/92 px-2.5 py-1 shadow-[0_6px_14px_rgba(6,27,58,0.10)]">
+          <span className={`h-1.5 w-1.5 rounded-full ${outlet.openNow ? "bg-[#78BE43]" : "bg-[#94A3AD]"}`} />
+          <span className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-[#14213D]">
+            {outlet.openNow ? "Open now" : "Closed"}
+          </span>
+        </span>
+
+        <div className="absolute -bottom-6 left-4 flex h-14 w-14 items-center justify-center rounded-[17px] border border-[#DDEBF2] bg-white shadow-[0_10px_22px_rgba(6,27,58,0.12)]">
+          <span
+            className="text-[22px] leading-none text-[#14213D]"
+            style={{ fontFamily: '"DM Serif Display", Georgia, serif' }}
+          >
+            {getOutletInitials(outlet.name)}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col px-4 pb-4 pt-9">
+        <h3 className="text-[17px] font-extrabold leading-tight text-[#14213D]">{outlet.name}</h3>
+
+        <p className="mt-1 flex items-center gap-1 text-[11.5px] font-semibold text-[#667889]">
+          <MapPin className="h-3.5 w-3.5 shrink-0 text-[#0E7BC1]" strokeWidth={2} />
+          {outlet.area}, {outlet.city}
+        </p>
+
+        <p className="mt-2 text-[12.5px] font-medium leading-5 text-[#667889]">{outlet.tagline}</p>
+
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {outlet.specialties.map((specialty) => (
+            <span
+              key={specialty}
+              className="rounded-full bg-[#EAF8FE] px-2.5 py-1 text-[10px] font-bold text-[#0E7BC1]"
+            >
+              {specialty}
+            </span>
+          ))}
+        </div>
+
+        <div className="mt-auto pt-4">
+          <div className="flex items-center justify-between gap-2 border-t border-[#E9F4F8] pt-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-[#14213D]">
+              <span className="flex items-center gap-1">
+                <Star className="h-3.5 w-3.5 text-[#F26A21]" fill="currentColor" strokeWidth={0} />
+                {outlet.rating.toFixed(1)}
+              </span>
+              <span className="text-[#667889]">{outlet.fabricsCount} fabrics</span>
+              <span className="flex items-center gap-1 text-[#667889]">
+                <Truck className="h-3.5 w-3.5 text-[#0E7BC1]" strokeWidth={2} />
+                {outlet.deliveryDays}
+              </span>
+            </div>
+
+            <span className="outlet-card-visit flex shrink-0 items-center gap-1 text-[12px] font-extrabold text-[#0E7BC1]">
+              Visit
+              <ChevronRight className="h-4 w-4" strokeWidth={2.2} />
+            </span>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function LandingScreen({ onSelectOutlet }: { onSelectOutlet: (outletId: string) => void }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<(typeof outletFilterOptions)[number]>("All");
+
+  const filteredOutlets = useMemo(() => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+
+    return outlets.filter((outlet) => {
+      const matchesSearch =
+        !normalizedSearch ||
+        `${outlet.name} ${outlet.city} ${outlet.area} ${outlet.specialties.join(" ")}`
+          .toLowerCase()
+          .includes(normalizedSearch);
+      const matchesFilter = activeFilter === "All" || outlet.specialties.includes(activeFilter);
+
+      return matchesSearch && matchesFilter;
+    });
+  }, [activeFilter, searchQuery]);
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setActiveFilter("All");
+  };
+
   return (
     <PhoneFrame
-      frameClassName="welcome-phone-frame"
-      contentClassName="welcome-screen-content px-8 pb-4 pt-4"
+      frameClassName="landing-phone-frame"
+      contentClassName="landing-content px-5 pb-8 pt-14 md:px-10 md:pb-10 md:pt-8 lg:px-14"
     >
-      <div className="flex items-center justify-end">
-        <Globe2 className="h-7 w-7 text-[#14213D]" strokeWidth={1.6} />
-      </div>
+      <header className="flex items-center justify-between gap-3">
+        <div>
+          <div
+            className="landing-wordmark text-[28px] leading-none tracking-wide text-[#14213D] md:text-[34px]"
+            style={{ fontFamily: '"DM Serif Display", Georgia, serif' }}
+          >
+            MultiFe
+          </div>
+          <p className="mt-1 text-[7.5px] font-bold uppercase tracking-[0.22em] text-[#526172] md:text-[9px]">
+            Women&apos;s Custom Clothing
+          </p>
+        </div>
 
-      <BrandHeader />
-
-      <div className="welcome-hero relative mt-3 flex h-[340px] justify-center overflow-hidden">
-        <img
-          src={`${import.meta.env.BASE_URL}assets/first-page-qr-code-page.png`}
-          alt="Woman wearing a cream embroidered eastern outfit"
-          className="h-full w-full object-contain object-center"
-        />
-      </div>
-
-      <div className="welcome-tagline -mt-1 text-center">
-        <h2
-          className="text-[21px] font-semibold tracking-wide text-[#14213D]"
-          style={{ fontFamily: '"DM Serif Display", serif' }}
+        <button
+          type="button"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-[#DDEBF2] bg-white text-[#14213D] shadow-[0_6px_16px_rgba(6,27,58,0.07)]"
+          aria-label="Change language"
         >
-          Custom. Your Style. Your Fit.
+          <Globe2 className="h-5 w-5" strokeWidth={1.7} />
+        </button>
+      </header>
+
+      <section className="landing-hero mt-6 grid items-center gap-6 md:mt-8 md:grid-cols-[1.15fr_0.85fr] md:gap-10">
+        <div className="text-center md:text-left">
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[#DDEBF2] bg-white px-3 py-1.5 text-[9px] md:text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#15A9D6] shadow-[0_6px_14px_rgba(6,27,58,0.05)]">
+            <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
+            Custom. Your Style. Your Fit.
+          </span>
+
+          <h1 className="mt-4 text-[30px] leading-[1.12] md:text-[42px] lg:text-[48px]">
+            Your favourite outlets, tailored to you
+          </h1>
+
+          <p className="mx-auto mt-3 max-w-[460px] text-[13.5px] font-medium leading-6 text-[#667889] md:mx-0 md:text-[15px]">
+            Choose a shop, get measured with smart body sizing, and design an outfit stitched exactly to your fit.
+          </p>
+
+          <label className="mt-5 flex h-12 items-center gap-3 rounded-[18px] border border-[#DDEBF2] bg-white px-4 text-left shadow-[0_10px_24px_rgba(6,27,58,0.06)] md:max-w-[460px]">
+            <Search className="h-5 w-5 shrink-0 text-[#94A3AD]" strokeWidth={1.8} />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search outlet, city or fabric"
+              className="h-full min-w-0 flex-1 bg-transparent text-[13.5px] font-medium text-[#14213D] outline-none placeholder:text-[#94A3AD]"
+              aria-label="Search outlets"
+            />
+          </label>
+
+          <div className="mt-5 grid grid-cols-3 gap-2 md:max-w-[460px]">
+            {[
+              { icon: Ruler, label: "Smart sizing" },
+              { icon: Scissors, label: "20+ style options" },
+              { icon: Truck, label: "Delivered to you" },
+            ].map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="flex flex-col items-center gap-1.5 rounded-[15px] border border-[#DDEBF2] bg-white px-2 py-2.5 text-center md:flex-row md:gap-2 md:px-3 md:text-left"
+              >
+                <Icon className="h-4 w-4 shrink-0 text-[#0E7BC1]" strokeWidth={2} />
+                <span className="text-[10px] font-bold leading-tight text-[#14213D] md:text-[11px]">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="landing-hero-art relative mx-auto w-full max-w-[420px] overflow-hidden rounded-[26px] border border-[#DDEBF2] bg-[linear-gradient(180deg,#F6FCFF,#FFF8EF)] shadow-[0_14px_32px_rgba(6,27,58,0.08)]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(21,169,214,0.16),transparent_45%)]" />
+          <img
+            src={`${import.meta.env.BASE_URL}assets/first-page-qr-code-page.png`}
+            alt="Woman wearing a cream embroidered eastern outfit"
+            className="relative z-10 mx-auto h-[220px] w-full object-contain object-center md:h-[340px]"
+            loading="eager"
+            decoding="async"
+            draggable={false}
+          />
+          <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-white/94 px-3.5 py-2 shadow-[0_8px_18px_rgba(6,27,58,0.10)]">
+            <span className="h-2 w-2 rounded-full bg-[#78BE43]" />
+            <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#14213D]">
+              Exclusively for Women
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-9 md:mt-12" aria-labelledby="landing-outlets-title">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-[#15A9D6]">Outlets</p>
+            <h2 id="landing-outlets-title" className="mt-1 text-[21px] text-[#14213D] md:text-[26px]">
+              Choose where to shop
+            </h2>
+          </div>
+          <p className="shrink-0 text-[11.5px] font-bold text-[#667889]">
+            {filteredOutlets.length} of {outlets.length}
+          </p>
+        </div>
+
+        <div
+          className="-mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1 [&::-webkit-scrollbar]:hidden md:mx-0 md:flex-wrap md:px-0"
+          style={{ scrollbarWidth: "none" }}
+          role="group"
+          aria-label="Filter outlets"
+        >
+          {outletFilterOptions.map((option) => {
+            const active = option === activeFilter;
+            return (
+              <button
+                key={option}
+                type="button"
+                data-active={active}
+                aria-pressed={active}
+                onClick={() => setActiveFilter(option)}
+                className="h-9 shrink-0 rounded-full border border-[#DDEBF2] bg-white px-4 text-[12px] font-bold text-[#14213D] shadow-[0_6px_14px_rgba(6,27,58,0.05)]"
+              >
+                {option}
+              </button>
+            );
+          })}
+        </div>
+
+        {filteredOutlets.length > 0 ? (
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredOutlets.map((outlet) => (
+              <OutletCard key={outlet.id} outlet={outlet} onSelect={() => onSelectOutlet(outlet.id)} />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-[22px] border border-dashed border-[#DDEBF2] bg-white px-5 py-8 text-center">
+            <Store className="mx-auto h-7 w-7 text-[#94A3AD]" strokeWidth={1.7} />
+            <p className="mt-2 text-[13px] font-bold text-[#14213D]">No outlets match your search</p>
+            <p className="mt-1 text-[12px] font-medium text-[#667889]">Try another city, fabric or filter.</p>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="mx-auto mt-4 h-9 rounded-full border border-[#0E7BC1]/35 bg-white px-4 text-[12px] font-bold text-[#0E7BC1]"
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
+      </section>
+
+      <section className="mt-10 md:mt-14" aria-labelledby="landing-steps-title">
+        <p className="text-center text-[11px] font-extrabold uppercase tracking-[0.18em] text-[#15A9D6]">
+          How it works
+        </p>
+        <h2 id="landing-steps-title" className="mt-1 text-center text-[21px] text-[#14213D] md:text-[26px]">
+          From outlet to outfit in four steps
         </h2>
 
-        <div className="mt-3 flex items-center justify-center gap-3">
-          <span className="h-px w-9 bg-[#15A9D6] text-white" />
-          <p className="text-[16px] text-[#667889]">Exclusively for Women</p>
-          <span className="h-px w-9 bg-[#15A9D6] text-white" />
-        </div>
-      </div>
-
-      <button
-        type="button"
-        onClick={onNext}
-        className="qr-start-card welcome-qr-card relative mt-7 w-full overflow-hidden rounded-[22px] border border-[#DDEBF2] bg-white px-4 py-4 text-left shadow-[0_12px_30px_rgba(6,27,58,0.08)] transition hover:scale-[1.01]"
-      >
-        <div className="pointer-events-none absolute left-4 top-4 h-7 w-7 border-l-2 border-t-2 border-[#15A9D6]" />
-        <div className="pointer-events-none absolute bottom-4 right-4 h-7 w-7 border-b-2 border-r-2 border-[#15A9D6]" />
-
-        <div className="relative z-10 flex items-center justify-between gap-4">
-          <div className="min-w-0 max-w-[118px] shrink-0 pl-1">
-            <h3
-              className="text-[19px] font-extrabold leading-[1.08] tracking-[-0.03em] text-[#14213D]"
-              style={{ fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif' }}
+        <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+          {landingSteps.map(({ icon: Icon, title, text }, index) => (
+            <div
+              key={title}
+              className="rounded-[20px] border border-[#DDEBF2] bg-white px-3.5 py-4 shadow-[0_8px_18px_rgba(6,27,58,0.05)] md:px-5 md:py-5"
             >
-              Scan QR Code
-            </h3>
-
-            <p className="mt-2 text-[13px] font-medium leading-[1.45] text-[#65758A]">
-              to continue your custom order
-            </p>
-          </div>
-
-          <div className="qr-image-shell flex h-[142px] w-[142px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] border border-[#E2EEF4] bg-white p-2 shadow-[0_8px_18px_rgba(6,27,58,0.06)]">
-            <img
-              src="/assets/qr-code.png"
-              alt="QR Code"
-              className="welcome-qr-image block h-full w-full object-contain"
-              draggable={false}
-            />
-          </div>
+              <div className="flex items-center justify-between">
+                <span className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-[#EAF8FE] text-[#0E7BC1]">
+                  <Icon className="h-5 w-5" strokeWidth={1.9} />
+                </span>
+                <span className="text-[11px] font-extrabold text-[#94A3AD]">0{index + 1}</span>
+              </div>
+              <h3 className="mt-3 text-[13.5px] font-extrabold leading-tight text-[#14213D] md:text-[15px]">{title}</h3>
+              <p className="mt-1 text-[11.5px] font-medium leading-[1.45] text-[#667889] md:text-[12.5px]">{text}</p>
+            </div>
+          ))}
         </div>
-      </button>
+      </section>
+
+      <footer className="mt-10 flex flex-col items-center gap-2 border-t border-[#E9F4F8] pt-5 text-center md:flex-row md:justify-between md:text-left">
+        <p className="text-[11.5px] font-semibold text-[#667889]">
+          © {new Date().getFullYear()} MultiFe · Women&apos;s custom clothing
+        </p>
+        <a
+          href={`${import.meta.env.BASE_URL}store`}
+          className="flex items-center gap-1 text-[12px] font-bold text-[#0E7BC1] hover:underline"
+        >
+          Own a store? Open the store portal
+          <ChevronRight className="h-4 w-4" strokeWidth={2.2} />
+        </a>
+      </footer>
     </PhoneFrame>
   );
 }
 
+function OutletBadge({ outlet }: { outlet: Outlet }) {
+  return (
+    <div className="mx-auto mt-4 flex w-fit max-w-full items-center gap-2 rounded-full border border-[#DDEBF2] bg-white py-1.5 pl-1.5 pr-3.5 shadow-[0_6px_14px_rgba(6,27,58,0.06)]">
+      <span
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
+        style={{ background: outletAccentGradient[outlet.accent] }}
+      >
+        {getOutletInitials(outlet.name)}
+      </span>
+      <span className="min-w-0 truncate text-[11.5px] font-bold text-[#14213D]">
+        {outlet.name}
+        <span className="font-semibold text-[#667889]"> · {outlet.city}</span>
+      </span>
+    </div>
+  );
+}
+
 function AssistedScreen({
+  outlet,
   onBack,
   onContinue,
 }: {
+  outlet: Outlet | null;
   onBack: () => void;
   onContinue: () => void;
 }) {
@@ -1621,7 +1959,7 @@ function AssistedScreen({
           type="button"
           onClick={onBack}
           className="flex h-9 w-9 items-center justify-center rounded-full text-[#14213D] transition hover:bg-[#f1eee8]"
-          aria-label="Go back to welcome screen"
+          aria-label="Go back to outlets"
         >
           <ArrowLeft className="h-6 w-6" strokeWidth={1.7} />
         </button>
@@ -1630,6 +1968,8 @@ function AssistedScreen({
       </div>
 
       <BrandHeader />
+
+      {outlet && <OutletBadge outlet={outlet} />}
 
       <div className="mt-7 text-center">
         <h2
@@ -2135,11 +2475,13 @@ function FilterSelect({
 }
 
 function FabricLibraryScreen({
+  outlet,
   selectedFabricName,
   onBack,
   onProceed,
   onSelectFabric,
 }: {
+  outlet: Outlet | null;
   selectedFabricName: string | null;
   onBack: () => void;
   onProceed: (fabricName: string) => void;
@@ -2214,7 +2556,9 @@ function FabricLibraryScreen({
             Choose the Fabric
           </h1>
           <p className="mt-1 text-[13px] leading-5 text-[#667889]">
-            Premium fabrics for women&apos;s custom clothing.
+            {outlet
+              ? `Premium fabrics available at ${outlet.name}.`
+              : "Premium fabrics for women’s custom clothing."}
           </p>
         </div>
 
