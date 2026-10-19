@@ -4,7 +4,8 @@ import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 type StatCardProps = {
   label: string;
   value: string;
-  change: string;
+  change?: string;
+  note?: string;
   positive?: boolean;
   icon: LucideIcon;
   iconClassName: string;
@@ -14,6 +15,7 @@ export default function StatCard({
   label,
   value,
   change,
+  note,
   positive = true,
   icon: Icon,
   iconClassName,
@@ -31,11 +33,15 @@ export default function StatCard({
           <Icon className="h-5 w-5" />
         </span>
       </div>
-      <div className={`mt-4 flex items-center gap-1 text-xs font-semibold ${positive ? "text-emerald-600" : "text-red-600"}`}>
-        <ChangeIcon className="h-3.5 w-3.5" />
-        {change}
-        <span className="font-normal text-slate-400">vs last month</span>
-      </div>
+      {change ? (
+        <div className={`mt-4 flex items-center gap-1 text-xs font-semibold ${positive ? "text-emerald-600" : "text-red-600"}`}>
+          <ChangeIcon className="h-3.5 w-3.5" />
+          {change}
+          <span className="font-normal text-slate-400">vs last month</span>
+        </div>
+      ) : (
+        note && <p className="mt-4 text-xs text-slate-400">{note}</p>
+      )}
     </article>
   );
 }

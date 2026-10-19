@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import StoreNavbar from "../components/StoreNavbar";
 import StoreSidebar, { type StorePage } from "../components/StoreSidebar";
+import { getStoreProfile, goToStorePath } from "../onboarding/data";
 
 type StoreLayoutProps = {
   children: ReactNode;
@@ -10,6 +11,13 @@ type StoreLayoutProps = {
 
 export default function StoreLayout({ children, activePage = "Dashboard", onNavigate }: StoreLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [store] = useState(getStoreProfile);
+
+  // The portal is only for registered partners; everyone else starts at registration.
+  useEffect(() => {
+    if (!store) goToStorePath("/store/register");
+  }, [store]);
+
   const navigate = (page: StorePage) => {
     if (onNavigate) {
       onNavigate(page);
@@ -22,6 +30,8 @@ export default function StoreLayout({ children, activePage = "Dashboard", onNavi
     const route = page === "Products" ? "/store/products" : "/store";
     window.location.assign(`${basePath}${route}`);
   };
+
+  if (!store) return null;
 
   return (
     <div className="store-theme flex min-h-screen bg-[#F8FCFF] text-[#08243D]">
@@ -71,9 +81,9 @@ export default function StoreLayout({ children, activePage = "Dashboard", onNavi
         .store-theme [class*="bg-red-50"] { background-color: #FFF0EF !important; }
         .store-theme input::placeholder { color: var(--store-muted); }
       `}</style>
-      <StoreSidebar activePage={activePage} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onNavigate={navigate} />
+      <StoreSidebar activePage={activePage} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onNavigate={navigate} storeName={store.name} storeLogo={store.logo} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <StoreNavbar storeName="Al-Rehman Fabrics" onMenuClick={() => setSidebarOpen(true)} />
+        <StoreNavbar storeName={store.name} storeLogo={store.logo} onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1">{children}</main>
       </div>
     </div>

@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { getStoreInitials } from "../onboarding/data";
 
 type StorePage = "Dashboard" | "Products" | "Dress Templates" | "Customizations" | "Orders" | "Store Profile" | "Settings";
 
@@ -17,6 +18,8 @@ type StoreSidebarProps = {
   open: boolean;
   onClose: () => void;
   onNavigate?: (page: StorePage) => void;
+  storeName: string;
+  storeLogo?: string;
 };
 
 const items: { label: StorePage; icon: LucideIcon }[] = [
@@ -29,7 +32,7 @@ const items: { label: StorePage; icon: LucideIcon }[] = [
   { label: "Settings", icon: Settings },
 ];
 
-export default function StoreSidebar({ activePage, open, onClose, onNavigate }: StoreSidebarProps) {
+export default function StoreSidebar({ activePage, open, onClose, onNavigate, storeName, storeLogo }: StoreSidebarProps) {
   return (
     <>
       {open && <button type="button" className="fixed inset-0 z-30 bg-slate-900/40 lg:hidden" onClick={onClose} aria-label="Close navigation" />}
@@ -51,16 +54,14 @@ export default function StoreSidebar({ activePage, open, onClose, onNavigate }: 
             return (
               <button key={label} type="button" onClick={() => { onNavigate?.(label); onClose(); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition-colors ${active ? "bg-blue-50 text-[#0E7BC1]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}>
                 <Icon className="h-[18px] w-[18px]" />
-                {label}
-                {label === "Orders" && <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-700">12</span>}
-              </button>
+                {label}              </button>
             );
           })}
         </nav>
         <div className="m-4 rounded-2xl bg-slate-50 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0E7BC1] text-sm font-bold text-white">AR</div>
-            <div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800">Al-Rehman Fabrics</p><p className="text-xs text-slate-400">Store admin</p></div>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0E7BC1] text-sm font-bold text-white">{storeLogo ? <img src={storeLogo} alt="" className="h-full w-full object-cover" /> : getStoreInitials(storeName)}</div>
+            <div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800">{storeName}</p><p className="text-xs text-slate-400">Store admin</p></div>
           </div>
         </div>
       </aside>

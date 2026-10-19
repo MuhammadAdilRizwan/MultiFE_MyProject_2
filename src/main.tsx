@@ -1,15 +1,26 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import ErrorBoundary from './ErrorBoundary.tsx'
 import CustomerApp from './customer/App.tsx'
 import StoreDashboardPage from './store/dashboard/page.tsx'
 import ProductsPage from './store/products/page.tsx'
 import AddProductPage from './store/products/add/page.tsx'
 import EditProductPage from './store/products/edit/page.tsx'
+import StoreRegisterPage from './store/onboarding/register/page.tsx'
+import StoreFabricsSetupPage from './store/onboarding/fabrics/page.tsx'
 
 function AppRouter() {
   const path = window.location.pathname.replace(/\/+$/, '')
   const storePath = '/multife-local/store'
+
+  if (path === `${storePath}/register` || path.endsWith('/store/register')) {
+    return <StoreRegisterPage />
+  }
+
+  if (path === `${storePath}/fabrics/setup` || path.endsWith('/store/fabrics/setup')) {
+    return <StoreFabricsSetupPage />
+  }
 
   if (path === `${storePath}/products/add` || path.endsWith('/store/products/add')) {
     return <AddProductPage />
@@ -32,6 +43,8 @@ function AppRouter() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AppRouter />
+    <ErrorBoundary>
+      <AppRouter />
+    </ErrorBoundary>
   </StrictMode>,
 )

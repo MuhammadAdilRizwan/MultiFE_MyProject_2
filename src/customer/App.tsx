@@ -995,6 +995,22 @@ function AppPolishStyles() {
         transition: transform 210ms cubic-bezier(0.22, 1, 0.36, 1);
       }
 
+      .app-ui .landing-partner-cta {
+        background: linear-gradient(135deg, var(--mf-blue-deep) 0%, var(--mf-blue) 58%, var(--mf-cyan) 100%);
+        box-shadow: 0 12px 24px rgba(14, 123, 193, 0.22);
+        transition: transform 210ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 210ms ease;
+      }
+
+      .app-ui .landing-partner-cta:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 16px 30px rgba(14, 123, 193, 0.26);
+      }
+
+      .app-ui .landing-partner-cta,
+      .app-ui .landing-partner-cta svg {
+        color: #FFFFFF !important;
+      }
+
       .app-ui input[type="search"]::-webkit-search-cancel-button {
         cursor: pointer;
       }
@@ -1910,7 +1926,31 @@ function LandingScreen({ onSelectOutlet }: { onSelectOutlet: (outletId: string) 
         </div>
       </section>
 
-      <footer className="mt-10 flex flex-col items-center gap-2 border-t border-[#E9F4F8] pt-5 text-center md:flex-row md:justify-between md:text-left">
+      <section
+        className="mt-10 overflow-hidden rounded-[24px] border border-[#DDEBF2] bg-white shadow-[0_14px_32px_rgba(6,27,58,0.07)] md:mt-14"
+        aria-labelledby="landing-partner-title"
+      >
+        <div className="grid items-center gap-5 px-5 py-6 md:grid-cols-[1fr_auto] md:gap-8 md:px-8 md:py-8">
+          <div className="text-center md:text-left">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-[#15A9D6]">For boutiques &amp; fabric stores</p>
+            <h2 id="landing-partner-title" className="mt-1 text-[20px] text-[#14213D] md:text-[24px]">
+              Partner with MultiFe
+            </h2>
+            <p className="mx-auto mt-2 max-w-[520px] text-[12.5px] font-medium leading-5 text-[#667889] md:mx-0 md:text-[13.5px]">
+              List your store, showcase your fabrics and receive made-to-measure orders from customers near you.
+            </p>
+          </div>
+          <a
+            href={`${import.meta.env.BASE_URL}store/register`}
+            className="landing-partner-cta mx-auto flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-6 text-[13.5px] font-bold text-white md:mx-0"
+          >
+            <Store className="h-4 w-4" strokeWidth={2} />
+            Register your store
+          </a>
+        </div>
+      </section>
+
+      <footer className="mt-8 flex flex-col items-center gap-2 border-t border-[#E9F4F8] pt-5 text-center md:flex-row md:justify-between md:text-left">
         <p className="text-[11.5px] font-semibold text-[#667889]">
           © {new Date().getFullYear()} MultiFe · Women&apos;s custom clothing
         </p>
@@ -1918,7 +1958,7 @@ function LandingScreen({ onSelectOutlet }: { onSelectOutlet: (outletId: string) 
           href={`${import.meta.env.BASE_URL}store`}
           className="flex items-center gap-1 text-[12px] font-bold text-[#0E7BC1] hover:underline"
         >
-          Own a store? Open the store portal
+          Partner sign in
           <ChevronRight className="h-4 w-4" strokeWidth={2.2} />
         </a>
       </footer>
