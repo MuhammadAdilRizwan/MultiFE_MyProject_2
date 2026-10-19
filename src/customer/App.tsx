@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -36,6 +36,12 @@ import {
   UserCheck,
   X,
 } from "lucide-react";
+import {
+  filterAllowedOptions,
+  pickAllowedValue,
+  type FabricCustomizations,
+} from "../shared/customizationCatalog";
+import { getStoreFabrics, getStoreProfile } from "../store/onboarding/data";
 
 type Screen =
   | "landing"
@@ -75,11 +81,12 @@ type DressTemplate = {
   variant: "longKurti" | "alineFrock" | "maxiDress" | "abaya" | "twoPiece" | "threePiece" | "peplum";
 };
 
+// Category, colour and occasion are free text because partner stores can add their own ("Other") values.
 type FabricItem = {
   name: string;
-  category: "Everyday" | "Lightweight" | "Luxury" | "Formal" | "Festive" | "Premium" | "Sheer";
-  color: "Cream" | "Pink" | "Gold" | "Navy" | "Mint" | "Purple" | "Beige" | "White";
-  occasion: "Daily Wear" | "Summer" | "Formal" | "Wedding" | "Party" | "Eid / Festive" | "Winter";
+  category: string;
+  color: string;
+  occasion: string;
   pricePerYard: number;
   recommendedYards: number;
   stitchingFrom: number;
@@ -88,6 +95,8 @@ type FabricItem = {
   description: string;
   bestFor: string[];
   care: string;
+  // Options the store offers for this fabric; undefined means every customization is available.
+  customizations?: FabricCustomizations;
 };
 
 const fabrics: FabricItem[] = [
@@ -290,10 +299,12 @@ type Outlet = {
   city: string;
   area: string;
   specialties: string[];
-  rating: number;
+  // Partner stores registered on this device have no reviews yet.
+  rating?: number;
   fabricsCount: number;
   deliveryDays: string;
   accent: OutletAccent;
+  logo?: string;
 };
 
 const outlets: Outlet[] = [
@@ -389,6 +400,61 @@ function getOutletInitials(name: string) {
     .join("");
 }
 
+// Demo outlets show rounded catalogue sizes ("85+"); partner stores show their exact count.
+function formatFabricCount(outlet: Outlet, withNoun = true) {
+  const count = outlet.rating === undefined ? String(outlet.fabricsCount) : `${outlet.fabricsCount}+`;
+  if (!withNoun) return count;
+  return `${count} ${outlet.fabricsCount === 1 ? "fabric" : "fabrics"}`;
+}
+
+type PartnerCatalog = { outlet: Outlet; fabrics: FabricItem[] };
+
+// A store registered through partner onboarding on this device; listed once it has an active fabric.
+function loadPartnerCatalog(): PartnerCatalog | null {
+  const store = getStoreProfile();
+  if (!store) return null;
+
+  const activeFabrics = getStoreFabrics().filter((fabric) => fabric.status === "Active");
+  if (!activeFabrics.length) return null;
+
+  return {
+    outlet: {
+      id: `partner-${store.id}`,
+      name: store.name,
+      tagline: store.tagline,
+      city: store.city,
+      area: store.area,
+      specialties: store.specialties.slice(0, 3),
+      fabricsCount: activeFabrics.length,
+      deliveryDays: `${store.turnaroundMin}–${store.turnaroundMax} days`,
+      accent: "blue",
+      logo: store.logo || undefined,
+    },
+    fabrics: activeFabrics.map((fabric) => ({
+      name: fabric.name,
+      category: fabric.category,
+      color: fabric.color,
+      occasion: fabric.occasion,
+      pricePerYard: fabric.pricePerYard,
+      recommendedYards: fabric.recommendedYards,
+      stitchingFrom: fabric.stitchingFrom,
+      texture: fabric.texture || fabric.material,
+      imageSrc: fabric.images[0],
+      description: fabric.description,
+      bestFor: fabric.bestFor,
+      care: fabric.care || "Ask the store for care instructions.",
+      customizations: fabric.customizations,
+    })),
+  };
+}
+
+// Customization options the selected fabric allows; read by every customization screen.
+const AllowedCustomizationsContext = createContext<FabricCustomizations | undefined>(undefined);
+
+function useAllowedOptions<T extends string>(groupId: string, options: readonly T[]) {
+  return filterAllowedOptions(groupId, options, useContext(AllowedCustomizationsContext));
+}
+
 
 const CUSTOMIZATION_STORAGE_KEY = "multife_customization_selections";
 
@@ -438,7 +504,7 @@ function getSelectionImage(value: string, ...maps: Array<Record<string, string> 
   return undefined;
 }
 
-const fabricColorHexMap: Record<FabricItem["color"], string> = {
+const fabricColorHexMap: Record<string, string> = {
   Cream: "#EFF9FB",
   Pink: "#F4B7C8",
   Gold: "#D8B15D",
@@ -449,7 +515,14 @@ const fabricColorHexMap: Record<FabricItem["color"], string> = {
   White: "#FFFFFF",
 };
 
-function getFabricTintOpacity(color: FabricItem["color"]) {
+// Known palette colours first; a partner's custom colour (e.g. "Maroon") is used when the browser understands it.
+function getFabricHex(color: string) {
+  if (fabricColorHexMap[color]) return fabricColorHexMap[color];
+  const candidate = color.trim().toLowerCase().replace(/\s+/g, "");
+  return candidate && typeof CSS !== "undefined" && CSS.supports("color", candidate) ? candidate : "#D8C7A9";
+}
+
+function getFabricTintOpacity(color: string) {
   if (color === "White") return 0.08;
   if (color === "Cream") return 0.14;
   if (color === "Navy") return 0.3;
@@ -1334,16 +1407,25 @@ function App() {
   const [selectedOutletId, setSelectedOutletId] = useState<string | null>(null);
   const [bodyPhoto, setBodyPhoto] = useState<string | null>(null);
   const [selectedFabricName, setSelectedFabricName] = useState<string | null>(null);
+  const [partnerCatalog] = useState(loadPartnerCatalog);
+
+  const allOutlets = useMemo(
+    () => (partnerCatalog ? [partnerCatalog.outlet, ...outlets] : outlets),
+    [partnerCatalog]
+  );
 
   const selectedOutlet = useMemo(
-    () => outlets.find((outlet) => outlet.id === selectedOutletId) ?? null,
-    [selectedOutletId]
+    () => allOutlets.find((outlet) => outlet.id === selectedOutletId) ?? null,
+    [allOutlets, selectedOutletId]
   );
   const [selectedTemplateName, setSelectedTemplateName] = useState<string | null>(null);
 
+  // A partner store shows its own fabrics; the demo outlets share the sample catalogue.
+  const availableFabrics = partnerCatalog && selectedOutlet?.id === partnerCatalog.outlet.id ? partnerCatalog.fabrics : fabrics;
+
   const selectedFabric = useMemo(
-    () => fabrics.find((fabric) => fabric.name === selectedFabricName) ?? fabrics[0],
-    [selectedFabricName]
+    () => availableFabrics.find((fabric) => fabric.name === selectedFabricName) ?? availableFabrics[0],
+    [availableFabrics, selectedFabricName]
   );
 
   const selectedTemplate = useMemo(
@@ -1388,9 +1470,11 @@ function App() {
   return (
     <main className="app-shell min-h-screen bg-[radial-gradient(circle_at_top_left,#E7F8FF_0%,#FCFEFF_44%,#F6F2FF_100%)] px-6 py-8 text-[#14213D]">
       <AppPolishStyles />
+      <AllowedCustomizationsContext.Provider value={selectedFabric.customizations}>
       <section className="app-stage mx-auto flex min-h-[calc(100vh-64px)] max-w-7xl items-center justify-center">
         {screen === "landing" && (
           <LandingScreen
+            outlets={allOutlets}
             onSelectOutlet={(outletId) => {
               setSelectedOutletId(outletId);
               resetReviewReturnAndGo("assisted");
@@ -1424,6 +1508,7 @@ function App() {
 
         {screen === "fabric" && (
           <FabricLibraryScreen
+            fabrics={availableFabrics}
             outlet={selectedOutlet}
             selectedFabricName={selectedFabricName}
             onBack={() => goBackOrReturnToReview("bodyScannerMeasure")}
@@ -1593,6 +1678,7 @@ function App() {
           />
         )}
       </section>
+      </AllowedCustomizationsContext.Provider>
     </main>
   );
 }
@@ -1674,13 +1760,17 @@ function OutletCard({ outlet, onSelect }: { outlet: Outlet; onSelect: () => void
       <div className="relative h-[78px] w-full shrink-0" style={{ background: outletAccentGradient[outlet.accent] }}>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_-20%,rgba(255,255,255,0.35),transparent_45%)]" />
 
-        <div className="absolute -bottom-6 left-4 flex h-14 w-14 items-center justify-center rounded-[17px] border border-[#DDEBF2] bg-white shadow-[0_10px_22px_rgba(6,27,58,0.12)]">
-          <div
-            className="text-[22px] leading-none text-[#14213D]"
-            style={{ fontFamily: '"DM Serif Display", Georgia, serif' }}
-          >
-            {getOutletInitials(outlet.name)}
-          </div>
+        <div className="absolute -bottom-6 left-4 flex h-14 w-14 items-center justify-center overflow-hidden rounded-[17px] border border-[#DDEBF2] bg-white shadow-[0_10px_22px_rgba(6,27,58,0.12)]">
+          {outlet.logo ? (
+            <img src={outlet.logo} alt="" className="h-full w-full object-cover" draggable={false} />
+          ) : (
+            <div
+              className="text-[22px] leading-none text-[#14213D]"
+              style={{ fontFamily: '"DM Serif Display", Georgia, serif' }}
+            >
+              {getOutletInitials(outlet.name)}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1708,11 +1798,15 @@ function OutletCard({ outlet, onSelect }: { outlet: Outlet; onSelect: () => void
         <div className="mt-auto pt-4">
           <div className="flex items-center justify-between gap-2 border-t border-[#E9F4F8] pt-3">
             <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-[#14213D]">
-              <span className="flex items-center gap-1">
-                <Star className="h-3.5 w-3.5 text-[#F26A21]" fill="currentColor" strokeWidth={0} />
-                {outlet.rating.toFixed(1)}
-              </span>
-              <span className="text-[#667889]">{outlet.fabricsCount} fabrics</span>
+              {outlet.rating === undefined ? (
+                <span className="rounded-full bg-[#EEF9E8] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.08em] text-[#5B9832]">New</span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <Star className="h-3.5 w-3.5 text-[#F26A21]" fill="currentColor" strokeWidth={0} />
+                  {outlet.rating.toFixed(1)}
+                </span>
+              )}
+              <span className="text-[#667889]">{formatFabricCount(outlet).replace("+", "")}</span>
               <span className="flex items-center gap-1 text-[#667889]">
                 <Truck className="h-3.5 w-3.5 text-[#0E7BC1]" strokeWidth={2} />
                 {outlet.deliveryDays}
@@ -1817,7 +1911,13 @@ function LandingHeroShowcase() {
   );
 }
 
-function LandingScreen({ onSelectOutlet }: { onSelectOutlet: (outletId: string) => void }) {
+function LandingScreen({
+  outlets,
+  onSelectOutlet,
+}: {
+  outlets: Outlet[];
+  onSelectOutlet: (outletId: string) => void;
+}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<(typeof outletFilterOptions)[number]>("All");
 
@@ -1834,7 +1934,7 @@ function LandingScreen({ onSelectOutlet }: { onSelectOutlet: (outletId: string) 
 
       return matchesSearch && matchesFilter;
     });
-  }, [activeFilter, searchQuery]);
+  }, [activeFilter, outlets, searchQuery]);
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -2036,7 +2136,7 @@ function LandingScreen({ onSelectOutlet }: { onSelectOutlet: (outletId: string) 
 function getFittingSteps(outlet: Outlet) {
   return [
     { icon: Ruler, title: "Smart body measurements", text: "A quick scan, double-checked by the shopkeeper." },
-    { icon: Tag, title: "Choose your fabric", text: `Browse ${outlet.fabricsCount}+ fabrics from ${outlet.name}.` },
+    { icon: Tag, title: "Choose your fabric", text: `Browse ${formatFabricCount(outlet)} from ${outlet.name}.` },
     { icon: Shirt, title: "Pick a dress style", text: "Kurtis, frocks, maxis, 2 and 3-piece suits and more." },
     { icon: Scissors, title: "Customize every detail", text: "Neckline, sleeves, length, borders and dupatta." },
     { icon: CreditCard, title: "Review & place your order", text: "Pay your way and receive your order ID instantly." },
@@ -2127,10 +2227,14 @@ function AssistedScreen({
         <div className="px-5 pb-5 md:px-8 md:pb-7">
           <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end md:gap-8">
             <div className="min-w-0">
-              <div className="relative z-10 -mt-11 flex h-[84px] w-[84px] items-center justify-center rounded-[24px] border border-[#DDEBF2] bg-white shadow-[0_12px_26px_rgba(6,27,58,0.14)]">
-                <div className="text-[32px] leading-none text-[#14213D]" style={{ fontFamily: '"DM Serif Display", Georgia, serif' }}>
-                  {initials}
-                </div>
+              <div className="relative z-10 -mt-11 flex h-[84px] w-[84px] items-center justify-center overflow-hidden rounded-[24px] border border-[#DDEBF2] bg-white shadow-[0_12px_26px_rgba(6,27,58,0.14)]">
+                {store.logo ? (
+                  <img src={store.logo} alt={`${store.name} logo`} className="h-full w-full object-cover" draggable={false} />
+                ) : (
+                  <div className="text-[32px] leading-none text-[#14213D]" style={{ fontFamily: '"DM Serif Display", Georgia, serif' }}>
+                    {initials}
+                  </div>
+                )}
               </div>
 
               <p className="mt-4 text-[11px] font-extrabold uppercase tracking-[0.18em] text-[#15A9D6]">Welcome to</p>
@@ -2158,15 +2262,18 @@ function AssistedScreen({
           <div className="mt-5 grid grid-cols-3 divide-x divide-[#E9F4F8] rounded-[18px] border border-[#DDEBF2] bg-[#F6FCFF] py-3">
             {[
               {
-                value: (
-                  <span className="flex items-center justify-center gap-1">
-                    <Star className="h-4 w-4 text-[#F26A21]" fill="currentColor" strokeWidth={0} />
-                    {store.rating.toFixed(1)}
-                  </span>
-                ),
+                value:
+                  store.rating === undefined ? (
+                    "New"
+                  ) : (
+                    <span className="flex items-center justify-center gap-1">
+                      <Star className="h-4 w-4 text-[#F26A21]" fill="currentColor" strokeWidth={0} />
+                      {store.rating.toFixed(1)}
+                    </span>
+                  ),
                 label: "Rating",
               },
-              { value: `${store.fabricsCount}+`, label: "Fabrics" },
+              { value: formatFabricCount(store, false), label: store.fabricsCount === 1 ? "Fabric" : "Fabrics" },
               { value: store.deliveryDays, label: "Delivery" },
             ].map((stat) => (
               <div key={stat.label} className="px-2 text-center">
@@ -2999,12 +3106,14 @@ function FilterSelect({
 }
 
 function FabricLibraryScreen({
+  fabrics,
   outlet,
   selectedFabricName,
   onBack,
   onProceed,
   onSelectFabric,
 }: {
+  fabrics: FabricItem[];
   outlet: Outlet | null;
   selectedFabricName: string | null;
   onBack: () => void;
@@ -3033,7 +3142,7 @@ function FabricLibraryScreen({
 
       return matchesSearch && matchesCategory && matchesColor && matchesOccasion;
     });
-  }, [category, color, occasion, searchQuery]);
+  }, [category, color, fabrics, occasion, searchQuery]);
 
   const handleProceed = () => {
     if (!selectedFabricName) return;
@@ -3390,6 +3499,9 @@ function ImageFallbackBoard({
 
 function getImageCandidates(src?: string, label?: string) {
   if (!src) return [];
+
+  // Photos uploaded by partner stores are embedded data, not files under /assets.
+  if (/^(data|blob|https?):/i.test(src)) return [src];
 
   const cleanSrc = src.startsWith("/") ? src : `/${src}`;
   const parts = cleanSrc.split("/").filter(Boolean);
@@ -4030,9 +4142,18 @@ function NeckCustomizationScreen({
   onBack: () => void;
   onSave: () => void;
 }) {
-  const [selectedNeck, setSelectedNeck] = useState<NeckType>("Round Neck");
-  const [selectedDepth, setSelectedDepth] = useState<NeckDepth>("Standard");
-  const [selectedFinish, setSelectedFinish] = useState<FinishType>("Closed Back");
+  const neckTypes = useAllowedOptions("neckType", neckTypeOptions);
+  const neckDepths = useAllowedOptions("neckDepth", neckDepthOptions);
+  const neckFinishes = useAllowedOptions("neckFinish", finishOptions);
+  const [selectedNeck, setSelectedNeck] = useState<NeckType>(() =>
+    pickAllowedValue(neckTypes, getStoredCustomizationSelections().neckType, "Round Neck")
+  );
+  const [selectedDepth, setSelectedDepth] = useState<NeckDepth>(() =>
+    pickAllowedValue(neckDepths, getStoredCustomizationSelections().neckDepth, "Standard")
+  );
+  const [selectedFinish, setSelectedFinish] = useState<FinishType>(() =>
+    pickAllowedValue(neckFinishes, getStoredCustomizationSelections().neckFinish, "Closed Back")
+  );
 
   return (
     <PhoneFrame contentClassName="flex h-full flex-col px-5 pb-0 pt-10">
@@ -4093,7 +4214,7 @@ function NeckCustomizationScreen({
       >
         <div className="space-y-5 pb-4">
           <div className="grid grid-cols-4 gap-x-2.5 gap-y-3">
-            {neckTypeOptions.map((option) => (
+            {neckTypes.map((option) => (
               <NeckOptionCard
                 key={option}
                 label={option}
@@ -4106,7 +4227,7 @@ function NeckCustomizationScreen({
           <div>
             <NeckSectionTitle>Neck Depth</NeckSectionTitle>
             <div className="mt-3 grid grid-cols-3 gap-2.5">
-              {neckDepthOptions.map((option) => (
+              {neckDepths.map((option) => (
                 <NeckDepthCard
                   key={option}
                   label={option}
@@ -4120,7 +4241,7 @@ function NeckCustomizationScreen({
           <div>
             <NeckSectionTitle>Front / Back Finish</NeckSectionTitle>
             <div className="mt-3 grid grid-cols-4 gap-x-2.5 gap-y-3">
-              {finishOptions.map((option) => (
+              {neckFinishes.map((option) => (
                 <NeckOptionCard
                   key={option}
                   label={option}
@@ -4303,9 +4424,18 @@ function ShoulderArmholeScreen({
   onBack: () => void;
   onSave: () => void;
 }) {
-  const [selectedStyle, setSelectedStyle] = useState<ShoulderStyle>("Standard Shoulder");
-  const [selectedWidth, setSelectedWidth] = useState<ShoulderWidth>("Standard");
-  const [selectedArmhole, setSelectedArmhole] = useState<ArmholeShape>("Comfort Fit");
+  const shoulderStyles = useAllowedOptions("shoulderStyle", shoulderStyleOptions);
+  const shoulderWidths = useAllowedOptions("shoulderWidth", shoulderWidthOptions);
+  const armholeShapes = useAllowedOptions("armholeShape", armholeShapeOptions);
+  const [selectedStyle, setSelectedStyle] = useState<ShoulderStyle>(() =>
+    pickAllowedValue(shoulderStyles, getStoredCustomizationSelections().shoulderStyle, "Standard Shoulder")
+  );
+  const [selectedWidth, setSelectedWidth] = useState<ShoulderWidth>(() =>
+    pickAllowedValue(shoulderWidths, getStoredCustomizationSelections().shoulderWidth, "Standard")
+  );
+  const [selectedArmhole, setSelectedArmhole] = useState<ArmholeShape>(() =>
+    pickAllowedValue(armholeShapes, getStoredCustomizationSelections().armholeShape, "Comfort Fit")
+  );
 
   return (
     <PhoneFrame contentClassName="flex h-full flex-col px-5 pb-0 pt-12">
@@ -4372,7 +4502,7 @@ function ShoulderArmholeScreen({
 
         <ShoulderSectionTitle number="1">Shoulder Style</ShoulderSectionTitle>
         <div className="mt-2 grid grid-cols-4 gap-2">
-          {shoulderStyleOptions.map((option) => (
+          {shoulderStyles.map((option) => (
             <ShoulderOptionCard
               key={option}
               label={option}
@@ -4385,7 +4515,7 @@ function ShoulderArmholeScreen({
 
         <ShoulderSectionTitle number="2">Shoulder Width</ShoulderSectionTitle>
         <div className="mt-2 grid grid-cols-3 gap-2 px-2">
-          {shoulderWidthOptions.map((option) => (
+          {shoulderWidths.map((option) => (
             <ShoulderOptionCard
               key={option}
               label={option}
@@ -4398,7 +4528,7 @@ function ShoulderArmholeScreen({
 
         <ShoulderSectionTitle number="3">Armhole Shape</ShoulderSectionTitle>
         <div className="mt-2 grid grid-cols-4 gap-2">
-          {armholeShapeOptions.map((option) => (
+          {armholeShapes.map((option) => (
             <ShoulderOptionCard
               key={option}
               label={option}
@@ -4563,9 +4693,18 @@ function UpperArmCustomizationScreen({
   onBack: () => void;
   onSave: () => void;
 }) {
-  const [selectedFit, setSelectedFit] = useState<UpperArmFit>("Regular Fit");
-  const [selectedVolume, setSelectedVolume] = useState<SleeveVolume>("Moderate");
-  const [selectedDecorative, setSelectedDecorative] = useState<DecorativeStyle>("Plain");
+  const upperArmFits = useAllowedOptions("upperArmFit", upperArmFitOptions);
+  const sleeveVolumes = useAllowedOptions("sleeveVolume", sleeveVolumeOptions);
+  const decorativeStyles = useAllowedOptions("decorativeStyle", decorativeStyleOptions);
+  const [selectedFit, setSelectedFit] = useState<UpperArmFit>(() =>
+    pickAllowedValue(upperArmFits, getStoredCustomizationSelections().upperArmFit, "Regular Fit")
+  );
+  const [selectedVolume, setSelectedVolume] = useState<SleeveVolume>(() =>
+    pickAllowedValue(sleeveVolumes, getStoredCustomizationSelections().sleeveVolume, "Moderate")
+  );
+  const [selectedDecorative, setSelectedDecorative] = useState<DecorativeStyle>(() =>
+    pickAllowedValue(decorativeStyles, getStoredCustomizationSelections().decorativeStyle, "Plain")
+  );
 
   return (
     <PhoneFrame contentClassName="flex h-full flex-col px-5 pb-0 pt-12">
@@ -4632,7 +4771,7 @@ function UpperArmCustomizationScreen({
 
         <UpperArmSectionTitle>Upper Arm Fit</UpperArmSectionTitle>
         <div className="mt-2 grid grid-cols-3 gap-2">
-          {upperArmFitOptions.map((option) => (
+          {upperArmFits.map((option) => (
             <UpperArmOptionCard
               key={option}
               label={option}
@@ -4645,7 +4784,7 @@ function UpperArmCustomizationScreen({
 
         <UpperArmSectionTitle>Sleeve Volume</UpperArmSectionTitle>
         <div className="mt-2 grid grid-cols-3 gap-2">
-          {sleeveVolumeOptions.map((option) => (
+          {sleeveVolumes.map((option) => (
             <UpperArmOptionCard
               key={option}
               label={option}
@@ -4658,7 +4797,7 @@ function UpperArmCustomizationScreen({
 
         <UpperArmSectionTitle>Decorative Style</UpperArmSectionTitle>
         <div className="mt-2 grid grid-cols-4 gap-2">
-          {decorativeStyleOptions.map((option) => (
+          {decorativeStyles.map((option) => (
             <UpperArmOptionCard
               key={option}
               label={option}
@@ -4910,9 +5049,16 @@ function CustomizationFlowScreen({
   buttonText: string;
   infoText?: string;
 }) {
+  // Only show the options the store offers for the selected fabric.
+  const allowedCustomizations = useContext(AllowedCustomizationsContext);
+  const visibleGroups = groups.map((group) => ({
+    ...group,
+    options: filterAllowedOptions(group.id, group.options, allowedCustomizations),
+  }));
+
   const [selected, setSelected] = useState<Record<string, string>>(() => {
     const storedSelections = getStoredCustomizationSelections();
-    const entries = groups.map((group) => [group.id, storedSelections[group.id] ?? group.initial ?? group.options[0]]);
+    const entries = visibleGroups.map((group) => [group.id, pickAllowedValue(group.options, storedSelections[group.id], group.initial)]);
     return Object.fromEntries(entries);
   });
 
@@ -4942,12 +5088,12 @@ function CustomizationFlowScreen({
         </div>
 
         <div className="mt-4 space-y-4">
-          {groups.map((group, index) => (
+          {visibleGroups.map((group, index) => (
             <CustomizationGroup
               key={group.id}
               group={group}
               selected={selected[group.id]}
-              index={groups.length > 1 ? index + 1 : undefined}
+              index={visibleGroups.length > 1 ? index + 1 : undefined}
               onSelect={(value) => setSelected((current) => ({ ...current, [group.id]: value }))}
             />
           ))}
@@ -5822,7 +5968,7 @@ function ReviewDetailCard({
         )}
         <div
           className="pointer-events-none absolute inset-0 z-20"
-          style={{ backgroundColor: fabricColorHexMap[fabric.color], mixBlendMode: "multiply", opacity: getFabricTintOpacity(fabric.color) }}
+          style={{ backgroundColor: getFabricHex(fabric.color), mixBlendMode: "multiply", opacity: getFabricTintOpacity(fabric.color) }}
         />
       </div>
 
@@ -5831,7 +5977,7 @@ function ReviewDetailCard({
         <p className="summary-value mt-1 text-[11px] font-semibold leading-[1.25] text-[#526172]">{value}</p>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full border border-[#DDEBF2]" style={{ backgroundColor: fabricColorHexMap[fabric.color] }} />
+          <span className="h-2.5 w-2.5 rounded-full border border-[#DDEBF2]" style={{ backgroundColor: getFabricHex(fabric.color) }} />
           <span className="rounded-full bg-[#F3F8FB] px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#7B8C9D]">
             {fabric.color}
           </span>
@@ -5906,7 +6052,7 @@ function FinalOutfitPreviewPanel({
         />
         <div
           className="pointer-events-none absolute inset-0 z-20"
-          style={{ backgroundColor: fabricColorHexMap[selectedFabric.color], mixBlendMode: "multiply", opacity: getFabricTintOpacity(selectedFabric.color) }}
+          style={{ backgroundColor: getFabricHex(selectedFabric.color), mixBlendMode: "multiply", opacity: getFabricTintOpacity(selectedFabric.color) }}
         />
         <div className="pointer-events-none absolute inset-0 z-30 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(6,27,58,0.08))]" />
         <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-[#14213D]/85 to-transparent px-4 pb-3 pt-14">

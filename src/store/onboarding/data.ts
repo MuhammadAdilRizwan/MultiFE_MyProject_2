@@ -1,3 +1,5 @@
+import { normalizeCustomizations, type FabricCustomizations } from "../../shared/customizationCatalog";
+
 export type StoreType = "Boutique" | "Fabric Shop" | "Tailoring Studio" | "Designer Label";
 
 export type StoreProfile = {
@@ -48,6 +50,8 @@ export type StoreFabric = {
   care: string;
   images: string[];
   status: FabricStatus;
+  // Customization options the customer may choose for this fabric, keyed by catalog group id.
+  customizations: FabricCustomizations;
 };
 
 // Option lists mirror the customer fabric library so registered fabrics can feed it later.
@@ -236,6 +240,7 @@ export function getStoreFabrics(): StoreFabric[] {
       care: asString(item.care),
       images: asStringList(item.images),
       status: item.status === "Draft" ? "Draft" : "Active",
+      customizations: normalizeCustomizations(item.customizations),
     }));
 }
 

@@ -12,6 +12,13 @@ import {
   Store,
   Trash2,
 } from "lucide-react";
+import {
+  createAllCustomizations,
+  createEmptyCustomizations,
+  customizationCatalog,
+  customizationGroups,
+  type FabricCustomizations,
+} from "../../../shared/customizationCatalog";
 import OnboardingLayout from "../components/OnboardingLayout";
 import { ChipGroup, Field, MultiImagePicker } from "../components/FormControls";
 import {
@@ -71,6 +78,8 @@ function createEmptyFabric(store: StoreProfile | null): FabricForm {
     care: "",
     images: [],
     status: "Active",
+    // Shop owners choose each option themselves; nothing is offered until selected.
+    customizations: createEmptyCustomizations(),
     materialOther: "",
     categoryOther: "",
     colorOther: "",
@@ -105,6 +114,10 @@ function needsOtherText(selected: string, otherText: string) {
   return selected === OTHER_OPTION && otherText.trim().length < 2;
 }
 
+function getEmptyCustomizationGroups(customizations: FabricCustomizations) {
+  return customizationGroups.filter((group) => !customizations[group.id]?.length);
+}
+
 function validateFabric(form: FabricForm): FabricErrors {
   const errors: FabricErrors = {};
   if (!form.images.length) errors.images = "Add at least one clear photo of the fabric.";
@@ -123,6 +136,13 @@ function validateFabric(form: FabricForm): FabricErrors {
   if (!(Number(form.stockYards) >= 0) || form.stockYards === "") errors.stockYards = "Enter how many yards you have.";
   if (form.description.trim().length < 10) errors.description = "Describe the fabric in a sentence or two.";
   if (!form.bestFor.length) errors.bestFor = "Choose at least one outfit type.";
+  const emptyGroups = getEmptyCustomizationGroups(form.customizations);
+  if (emptyGroups.length) {
+    errors.customizations =
+      emptyGroups.length === 1
+        ? `Select at least one option for ${emptyGroups[0].title.toLowerCase()}.`
+        : `Select at least one option in every group — ${emptyGroups.length} groups still have nothing selected.`;
+  }
   return errors;
 }
 
@@ -342,6 +362,122 @@ function ColorSelect({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function CustomizationOptionsEditor({
+  value,
+  showErrors,
+  onChangeGroup,
+  onToggleOption,
+  onOfferEverything,
+}: {
+  value: FabricCustomizations;
+  showErrors: boolean;
+  onChangeGroup: (groupId: string, options: string[]) => void;
+  onToggleOption: (groupId: string, option: string) => void;
+  onOfferEverything: () => void;
+}) {
+  const [openSections, setOpenSections] = useState<string[]>([customizationCatalog[0].id]);
+  const totalOptions = customizationGroups.reduce((sum, group) => sum + group.options.length, 0);
+  const offeredOptions = customizationGroups.reduce((sum, group) => sum + (value[group.id]?.length ?? 0), 0);
+
+  const toggleSection = (sectionId: string) => {
+    setOpenSections((current) =>
+      current.includes(sectionId) ? current.filter((id) => id !== sectionId) : [...current, sectionId]
+    );
+  };
+
+  return (
+    <div data-field="customizations" className="rounded-[18px] border border-[#DDEBF2] bg-[#F8FCFF]">
+      <div className="flex flex-col gap-3 border-b border-[#DDEBF2] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-[12.5px] leading-5 text-[#65758A]">
+          Select every option you can make with this fabric. Customers will only see the options you select.
+          <span className="mt-0.5 block font-bold text-[#08243D]">
+            {offeredOptions} of {totalOptions} options selected
+          </span>
+        </p>
+        <button
+          type="button"
+          onClick={onOfferEverything}
+          className="shrink-0 self-start rounded-full border border-[#DDEBF2] bg-white px-3.5 py-2 text-[12px] font-bold text-[#0E7BC1] hover:bg-[#EAF8FE] sm:self-auto"
+        >
+          Select everything
+        </button>
+      </div>
+
+      <ul className="divide-y divide-[#DDEBF2]">
+        {customizationCatalog.map((section, sectionIndex) => {
+          const sectionTotal = section.groups.reduce((sum, group) => sum + group.options.length, 0);
+          const sectionOffered = section.groups.reduce((sum, group) => sum + (value[group.id]?.length ?? 0), 0);
+          const hasEmptyGroup = section.groups.some((group) => !value[group.id]?.length);
+          const open = openSections.includes(section.id) || (showErrors && hasEmptyGroup);
+          const panelId = `customization-panel-${section.id}`;
+
+          return (
+            <li key={section.id}>
+              <button
+                type="button"
+                onClick={() => toggleSection(section.id)}
+                aria-expanded={open}
+                aria-controls={panelId}
+                className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-white"
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-[#EAF8FE] text-[11px] font-extrabold text-[#0E7BC1]">
+                  {sectionIndex + 1}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13.5px] font-extrabold text-[#08243D]">{section.title}</span>
+                  <span className={`block text-[11.5px] font-semibold ${hasEmptyGroup && showErrors ? "text-[#C94B43]" : "text-[#65758A]"}`}>
+                    {hasEmptyGroup && showErrors ? "Choose at least one option in each group" : `${sectionOffered} of ${sectionTotal} selected`}
+                  </span>
+                </span>
+                <ChevronDown className={`h-4 w-4 shrink-0 text-[#65758A] transition ${open ? "rotate-180" : ""}`} strokeWidth={2} />
+              </button>
+
+              {open && (
+                <div id={panelId} className="space-y-4 px-4 pb-5 pt-1">
+                  {section.groups.map((group) => {
+                    const selected = value[group.id] ?? [];
+                    const empty = selected.length === 0;
+                    return (
+                      <div key={group.id}>
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-[12.5px] font-bold text-[#08243D]">
+                            {group.title}
+                            <span className="ml-1.5 font-semibold text-[#94A3AD]">
+                              {selected.length}/{group.options.length}
+                            </span>
+                          </p>
+                          <div className="flex gap-3 text-[11.5px] font-bold">
+                            <button type="button" onClick={() => onChangeGroup(group.id, [...group.options])} className="text-[#0E7BC1] hover:underline">
+                              Select all
+                            </button>
+                            <button type="button" onClick={() => onChangeGroup(group.id, [])} className="text-[#65758A] hover:underline">
+                              Clear
+                            </button>
+                          </div>
+                        </div>
+                        <ChipGroup
+                          label={group.title}
+                          options={[...group.options]}
+                          selected={selected}
+                          onToggle={(option) => onToggleOption(group.id, option)}
+                          invalid={showErrors && empty}
+                        />
+                        {showErrors && empty && (
+                          <p className="mt-1.5 text-[12px] font-semibold text-[#C94B43]">Pick at least one {group.title.toLowerCase()}.</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -795,6 +931,27 @@ export default function StoreFabricsSetupPage() {
                 onChange={(event) => update("care", event.target.value)}
                 placeholder="e.g. Gentle hand wash, iron on medium heat"
                 maxLength={120}
+              />
+            </Field>
+
+            <Field label="Customization options" required error={errors.customizations} className="sm:col-span-2">
+              <CustomizationOptionsEditor
+                value={form.customizations}
+                showErrors={submitted}
+                onChangeGroup={(groupId, options) =>
+                  setForm((current) => ({ ...current, customizations: { ...current.customizations, [groupId]: options } }))
+                }
+                onToggleOption={(groupId, option) =>
+                  setForm((current) => {
+                    const group = customizationGroups.find((item) => item.id === groupId);
+                    const selected = current.customizations[groupId] ?? [];
+                    const next = selected.includes(option) ? selected.filter((item) => item !== option) : [...selected, option];
+                    // Keep options in catalog order so saved data reads the same as the customer screens.
+                    const ordered = group ? group.options.filter((item) => next.includes(item)) : next;
+                    return { ...current, customizations: { ...current.customizations, [groupId]: ordered } };
+                  })
+                }
+                onOfferEverything={() => update("customizations", createAllCustomizations())}
               />
             </Field>
 
