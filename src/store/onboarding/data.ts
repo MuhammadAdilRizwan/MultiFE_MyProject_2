@@ -90,11 +90,34 @@ export const storePaymentMethods = ["Cash on delivery", "Debit / credit card", "
 
 export const fabricMaterials = ["Lawn", "Cotton", "Silk", "Chiffon", "Linen", "Net", "Organza", "Velvet", "Khaddar", "Other"];
 
-export const fabricCategories = ["Everyday", "Lightweight", "Luxury", "Formal", "Festive", "Premium", "Sheer"];
+export const OTHER_OPTION = "Other";
 
-export const fabricColors = ["Cream", "Pink", "Gold", "Navy", "Mint", "Purple", "Beige", "White"];
+export const fabricCategories = ["Everyday", "Lightweight", "Luxury", "Formal", "Festive", "Premium", "Sheer", OTHER_OPTION];
 
-export const fabricOccasions = ["Daily Wear", "Summer", "Formal", "Wedding", "Party", "Eid / Festive", "Winter"];
+export const fabricColors = ["Cream", "Pink", "Gold", "Navy", "Mint", "Purple", "Beige", "White", OTHER_OPTION];
+
+export const fabricOccasions = ["Daily Wear", "Summer", "Formal", "Wedding", "Party", "Eid / Festive", "Winter", OTHER_OPTION];
+
+// "raw silk" -> "Raw Silk", "off-white" -> "Off-White", "eid / festive" -> "Eid / Festive".
+export function toTitleCase(value: string) {
+  return value
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .replace(/(^|[\s\-/(])(\p{L})/gu, (_match, separator: string, letter: string) => separator + letter.toUpperCase());
+}
+
+// Turns a dropdown choice plus its "Other" text into the value that gets saved.
+export function resolveChoice(selected: string, otherText: string) {
+  return selected === OTHER_OPTION ? toTitleCase(otherText) : selected;
+}
+
+// Splits a saved value back into dropdown choice + "Other" text, e.g. when editing a fabric.
+export function splitChoice(value: string, options: string[]) {
+  if (!value) return { selected: "", other: "" };
+  if (value !== OTHER_OPTION && options.includes(value)) return { selected: value, other: "" };
+  return { selected: OTHER_OPTION, other: value };
+}
 
 export const fabricBestFor = ["Kurti", "Long Dress", "Frock", "Maxi", "2-Piece Suit", "3-Piece Suit", "Abaya", "Dupatta"];
 

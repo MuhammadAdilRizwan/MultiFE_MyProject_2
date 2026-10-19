@@ -1,8 +1,10 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  Check,
   CheckCircle2,
+  ChevronDown,
   Layers,
   MapPin,
   Pencil,
@@ -24,9 +26,13 @@ import {
   getStoreFabrics,
   getStoreProfile,
   goToStorePath,
+  OTHER_OPTION,
+  resolveChoice,
   saveStoreFabrics,
+  splitChoice,
   storeBasePath,
   toggleInList,
+  toTitleCase,
   type FabricStatus,
   type StoreFabric,
   type StoreProfile,
@@ -37,6 +43,11 @@ type FabricForm = Omit<StoreFabric, "id" | "pricePerYard" | "recommendedYards" |
   recommendedYards: string;
   stitchingFrom: string;
   stockYards: string;
+  // Free text typed when "Other" is chosen in the matching dropdown.
+  materialOther: string;
+  categoryOther: string;
+  colorOther: string;
+  occasionOther: string;
 };
 
 type FabricErrors = Partial<Record<keyof FabricForm, string>>;
@@ -60,17 +71,38 @@ function createEmptyFabric(store: StoreProfile | null): FabricForm {
     care: "",
     images: [],
     status: "Active",
+    materialOther: "",
+    categoryOther: "",
+    colorOther: "",
+    occasionOther: "",
   };
 }
 
 function toFabricForm(fabric: StoreFabric): FabricForm {
+  const material = splitChoice(fabric.material, fabricMaterials);
+  const category = splitChoice(fabric.category, fabricCategories);
+  const color = splitChoice(fabric.color, fabricColors);
+  const occasion = splitChoice(fabric.occasion, fabricOccasions);
+
   return {
     ...fabric,
     pricePerYard: String(fabric.pricePerYard),
     recommendedYards: String(fabric.recommendedYards),
     stitchingFrom: String(fabric.stitchingFrom),
     stockYards: String(fabric.stockYards),
+    material: material.selected,
+    materialOther: material.other,
+    category: category.selected,
+    categoryOther: category.other,
+    color: color.selected,
+    colorOther: color.other,
+    occasion: occasion.selected,
+    occasionOther: occasion.other,
   };
+}
+
+function needsOtherText(selected: string, otherText: string) {
+  return selected === OTHER_OPTION && otherText.trim().length < 2;
 }
 
 function validateFabric(form: FabricForm): FabricErrors {
@@ -78,9 +110,13 @@ function validateFabric(form: FabricForm): FabricErrors {
   if (!form.images.length) errors.images = "Add at least one clear photo of the fabric.";
   if (form.name.trim().length < 2) errors.name = "Enter the fabric name.";
   if (!form.material) errors.material = "Select the material.";
+  if (needsOtherText(form.material, form.materialOther)) errors.materialOther = "Type the material name.";
   if (!form.category) errors.category = "Select a category.";
+  if (needsOtherText(form.category, form.categoryOther)) errors.categoryOther = "Type the category name.";
   if (!form.color) errors.color = "Pick the main colour.";
+  if (needsOtherText(form.color, form.colorOther)) errors.colorOther = "Type the colour name.";
   if (!form.occasion) errors.occasion = "Select an occasion.";
+  if (needsOtherText(form.occasion, form.occasionOther)) errors.occasionOther = "Type the occasion.";
   if (!(Number(form.pricePerYard) > 0)) errors.pricePerYard = "Enter the price per yard.";
   if (!(Number(form.recommendedYards) > 0)) errors.recommendedYards = "Enter yards needed for one outfit.";
   if (!(Number(form.stitchingFrom) >= 0) || form.stitchingFrom === "") errors.stitchingFrom = "Enter the stitching price.";
@@ -90,6 +126,51 @@ function validateFabric(form: FabricForm): FabricErrors {
   return errors;
 }
 
+type OtherInputProps = {
+  field: keyof FabricForm;
+  label: string;
+  value: string;
+  error?: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+};
+
+// Text box shown under a dropdown when "Other" is picked; previews the capitalised value that will be saved.
+function OtherInput({ field, label, value, error, placeholder, onChange }: OtherInputProps) {
+  const id = `fabric-${field}`;
+  const preview = toTitleCase(value);
+
+  return (
+    <div className="mt-2.5">
+      <label htmlFor={id} className="sr-only">
+        {label}
+      </label>
+      <input
+        id={id}
+        data-field={field}
+        className="mf-input"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        aria-invalid={Boolean(error)}
+        maxLength={40}
+        autoComplete="off"
+      />
+      {error ? (
+        <p className="mt-1.5 text-[12px] font-semibold text-[#C94B43]" role="alert">
+          {error}
+        </p>
+      ) : (
+        preview && (
+          <p className="mt-1.5 text-[12px] text-[#65758A]">
+            Will be saved as <span className="font-bold text-[#08243D]">{preview}</span>
+          </p>
+        )
+      )}
+    </div>
+  );
+}
+
 function SelectField({
   label,
   value,
@@ -97,6 +178,7 @@ function SelectField({
   error,
   field,
   onChange,
+  other,
 }: {
   label: string;
   value: string;
@@ -104,6 +186,7 @@ function SelectField({
   error?: string;
   field: keyof FabricForm;
   onChange: (value: string) => void;
+  other: OtherInputProps;
 }) {
   const id = `fabric-${field}`;
   return (
@@ -123,7 +206,143 @@ function SelectField({
           <option key={option}>{option}</option>
         ))}
       </select>
+      {value === OTHER_OPTION && <OtherInput {...other} />}
     </Field>
+  );
+}
+
+// Shows a typed custom colour (e.g. "maroon") when the browser recognises it; otherwise a neutral swatch.
+function getSwatchColor(colorName: string) {
+  if (fabricColorHex[colorName]) return fabricColorHex[colorName];
+  const candidate = colorName.trim().toLowerCase().replace(/\s+/g, "");
+  return candidate && typeof CSS !== "undefined" && CSS.supports("color", candidate) ? candidate : "";
+}
+
+function ColorSwatch({ color, size = "h-5 w-5" }: { color: string; size?: string }) {
+  const swatch = getSwatchColor(color);
+  return (
+    <span
+      className={`${size} shrink-0 rounded-full border ${swatch ? "border-[#DDEBF2]" : "border-dashed border-[#94A3AD] bg-[#F4FBFD]"}`}
+      style={swatch ? { background: swatch } : undefined}
+      aria-hidden="true"
+    />
+  );
+}
+
+function ColorSelect({
+  value,
+  otherValue,
+  error,
+  onChange,
+}: {
+  value: string;
+  otherValue: string;
+  error?: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const listboxId = useId();
+  const triggerId = "fabric-color";
+
+  // Close when clicking anywhere outside the dropdown.
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [open]);
+
+  // Move focus to the chosen (or first) option as soon as the list opens.
+  useEffect(() => {
+    if (!open) return;
+    const options = containerRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]');
+    const selected = containerRef.current?.querySelector<HTMLButtonElement>('[role="option"][aria-selected="true"]');
+    (selected ?? options?.[0])?.focus();
+  }, [open]);
+
+  const choose = (color: string) => {
+    onChange(color);
+    setOpen(false);
+    containerRef.current?.querySelector<HTMLButtonElement>(`#${triggerId}`)?.focus();
+  };
+
+  const handleListKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const options = Array.from(containerRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? []);
+    const index = options.indexOf(document.activeElement as HTMLButtonElement);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      options[(index + step + options.length) % options.length]?.focus();
+    } else if (event.key === "Escape" || event.key === "Tab") {
+      setOpen(false);
+    }
+  };
+
+  const displayName = value === OTHER_OPTION ? toTitleCase(otherValue) || "Other colour" : value;
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        id={triggerId}
+        type="button"
+        data-field="color"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listboxId}
+        aria-invalid={Boolean(error)}
+        onClick={() => setOpen((current) => !current)}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" && !open) {
+            event.preventDefault();
+            setOpen(true);
+          }
+        }}
+        className="mf-input flex items-center gap-2.5 text-left"
+      >
+        {value ? (
+          <>
+            <ColorSwatch color={value === OTHER_OPTION ? otherValue : value} />
+            <span className="min-w-0 flex-1 truncate">{displayName}</span>
+          </>
+        ) : (
+          <span className="flex-1 text-[#94A3AD]">Select colour</span>
+        )}
+        <ChevronDown className={`h-4 w-4 shrink-0 text-[#65758A] transition ${open ? "rotate-180" : ""}`} strokeWidth={2} />
+      </button>
+
+      {open && (
+        <div
+          id={listboxId}
+          role="listbox"
+          aria-label="Main colour"
+          onKeyDown={handleListKeyDown}
+          className="absolute left-0 right-0 z-20 mt-2 max-h-72 overflow-y-auto rounded-[16px] border border-[#DDEBF2] bg-white p-1.5 shadow-[0_18px_40px_rgba(8,36,61,0.14)]"
+        >
+          {fabricColors.map((color) => {
+            const selected = value === color;
+            return (
+              <button
+                key={color}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                onClick={() => choose(color)}
+                className={`flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 text-left text-[13.5px] font-semibold text-[#08243D] outline-none hover:bg-[#F4FBFD] focus-visible:bg-[#EAF8FE] ${
+                  selected ? "bg-[#EAF8FE]" : ""
+                }`}
+              >
+                <ColorSwatch color={color === OTHER_OPTION ? "" : color} size="h-6 w-6" />
+                <span className="flex-1">{color === OTHER_OPTION ? "Other colour…" : color}</span>
+                {selected && <Check className="h-4 w-4 text-[#0E7BC1]" strokeWidth={2.5} />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -278,9 +497,14 @@ export default function StoreFabricsSetupPage() {
       return;
     }
 
+    const { materialOther, categoryOther, colorOther, occasionOther, ...fields } = form;
     const fabric: StoreFabric = {
-      ...form,
+      ...fields,
       id: editingId ?? createId("fabric"),
+      material: resolveChoice(form.material, materialOther),
+      category: resolveChoice(form.category, categoryOther),
+      color: resolveChoice(form.color, colorOther),
+      occasion: resolveChoice(form.occasion, occasionOther),
       name: form.name.trim(),
       texture: form.texture.trim(),
       description: form.description.trim(),
@@ -399,37 +623,74 @@ export default function StoreFabricsSetupPage() {
               />
             </Field>
 
-            <SelectField label="Material" field="material" value={form.material} options={fabricMaterials} error={errors.material} onChange={(value) => update("material", value)} />
-            <SelectField label="Category" field="category" value={form.category} options={fabricCategories} error={errors.category} onChange={(value) => update("category", value)} />
+            <SelectField
+              label="Material"
+              field="material"
+              value={form.material}
+              options={fabricMaterials}
+              error={errors.material}
+              onChange={(value) => update("material", value)}
+              other={{
+                field: "materialOther",
+                label: "Other material",
+                value: form.materialOther,
+                error: errors.materialOther,
+                placeholder: "Type the material, e.g. Raw silk",
+                onChange: (value) => update("materialOther", value),
+              }}
+            />
+            <SelectField
+              label="Category"
+              field="category"
+              value={form.category}
+              options={fabricCategories}
+              error={errors.category}
+              onChange={(value) => update("category", value)}
+              other={{
+                field: "categoryOther",
+                label: "Other category",
+                value: form.categoryOther,
+                error: errors.categoryOther,
+                placeholder: "Type the category, e.g. Bridal",
+                onChange: (value) => update("categoryOther", value),
+              }}
+            />
 
-            <Field label="Main colour" required error={errors.color} className="sm:col-span-2">
-              <div data-field="color" className="flex flex-wrap gap-2" role="radiogroup" aria-label="Main colour">
-                {fabricColors.map((color) => {
-                  const active = form.color === color;
-                  return (
-                    <button
-                      key={color}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => update("color", color)}
-                      className={`flex min-h-9 items-center gap-2 rounded-full border bg-white py-1 pl-1.5 pr-3.5 text-[12.5px] font-bold text-[#08243D] transition ${
-                        active
-                          ? "border-[#0E7BC1] shadow-[0_0_0_3px_rgba(16,182,217,0.15)]"
-                          : errors.color
-                            ? "border-[#C94B43]/60"
-                            : "border-[#DDEBF2] hover:border-[#0E7BC1]/50"
-                      }`}
-                    >
-                      <span className="h-6 w-6 rounded-full border border-[#DDEBF2]" style={{ background: fabricColorHex[color] }} />
-                      {color}
-                    </button>
-                  );
-                })}
-              </div>
+            <Field label="Main colour" required error={errors.color} htmlFor="fabric-color">
+              <ColorSelect
+                value={form.color}
+                otherValue={form.colorOther}
+                error={errors.color}
+                onChange={(value) => update("color", value)}
+              />
+              {form.color === OTHER_OPTION && (
+                <OtherInput
+                  field="colorOther"
+                  label="Other colour"
+                  value={form.colorOther}
+                  error={errors.colorOther}
+                  placeholder="Type the colour, e.g. Maroon"
+                  onChange={(value) => update("colorOther", value)}
+                />
+              )}
             </Field>
 
-            <SelectField label="Occasion" field="occasion" value={form.occasion} options={fabricOccasions} error={errors.occasion} onChange={(value) => update("occasion", value)} />
+            <SelectField
+              label="Occasion"
+              field="occasion"
+              value={form.occasion}
+              options={fabricOccasions}
+              error={errors.occasion}
+              onChange={(value) => update("occasion", value)}
+              other={{
+                field: "occasionOther",
+                label: "Other occasion",
+                value: form.occasionOther,
+                error: errors.occasionOther,
+                placeholder: "Type the occasion, e.g. Mehndi",
+                onChange: (value) => update("occasionOther", value),
+              }}
+            />
 
             <Field label="Texture" hint="e.g. Soft, breathable, light sheen" htmlFor="fabric-texture">
               <input
