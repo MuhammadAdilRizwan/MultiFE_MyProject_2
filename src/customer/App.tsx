@@ -1,27 +1,40 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
   Banknote,
   CalendarDays,
+  Camera,
   Check,
   ChevronDown,
   ChevronRight,
   CreditCard,
   Globe2,
   Heart,
+  ImageUp,
+  Info,
   Lock,
   MapPin,
+  Maximize2,
   PackageCheck,
+  PersonStanding,
+  RefreshCw,
+  RotateCcw,
   Ruler,
   Scissors,
   Search,
+  ShieldCheck,
   Shirt,
+  Smartphone,
   Sparkles,
   Star,
   Store,
+  Sun,
   Tag,
+  Trash2,
   Truck,
+  UserCheck,
+  X,
 } from "lucide-react";
 
 type Screen =
@@ -280,7 +293,6 @@ type Outlet = {
   rating: number;
   fabricsCount: number;
   deliveryDays: string;
-  openNow: boolean;
   accent: OutletAccent;
 };
 
@@ -295,7 +307,6 @@ const outlets: Outlet[] = [
     rating: 4.8,
     fabricsCount: 120,
     deliveryDays: "7–10 days",
-    openNow: true,
     accent: "blue",
   },
   {
@@ -308,7 +319,6 @@ const outlets: Outlet[] = [
     rating: 4.9,
     fabricsCount: 85,
     deliveryDays: "14–18 days",
-    openNow: true,
     accent: "orange",
   },
   {
@@ -321,7 +331,6 @@ const outlets: Outlet[] = [
     rating: 4.7,
     fabricsCount: 64,
     deliveryDays: "8–12 days",
-    openNow: false,
     accent: "navy",
   },
   {
@@ -334,7 +343,6 @@ const outlets: Outlet[] = [
     rating: 4.6,
     fabricsCount: 140,
     deliveryDays: "6–9 days",
-    openNow: true,
     accent: "green",
   },
   {
@@ -347,7 +355,6 @@ const outlets: Outlet[] = [
     rating: 4.8,
     fabricsCount: 72,
     deliveryDays: "12–16 days",
-    openNow: true,
     accent: "orange",
   },
   {
@@ -360,7 +367,6 @@ const outlets: Outlet[] = [
     rating: 4.7,
     fabricsCount: 58,
     deliveryDays: "9–13 days",
-    openNow: false,
     accent: "blue",
   },
 ];
@@ -510,14 +516,7 @@ function useSmoothImageWarmup(screen: Screen, selectedFabric: FabricItem, select
     }
 
     if (screen === "assisted") {
-      warmupSources.push(
-        `${import.meta.env.BASE_URL}assets/first-page-qr-code-page.png`,
-        `${import.meta.env.BASE_URL}assets/page-2-workflow-shopkeeper-assistance.png`
-      );
-    }
-
-    if (screen === "bodyScannerStart") {
-      warmupSources.push(`${import.meta.env.BASE_URL}assets/page-3-measurement.png`);
+      warmupSources.push(`${import.meta.env.BASE_URL}assets/first-page-qr-code-page.png`);
     }
 
     if (screen === "assisted" || screen === "bodyScannerStart" || screen === "bodyScannerMeasure" || screen === "fabric" || screen === "fabricDetail") {
@@ -983,16 +982,24 @@ function AppPolishStyles() {
         text-align: left;
       }
 
-      .app-ui .landing-hero-art img {
-        animation: mf-image-reveal 420ms ease both;
-      }
-
       .app-ui .outlet-card:hover .outlet-card-visit svg {
         transform: translateX(2px);
       }
 
       .app-ui .outlet-card .outlet-card-visit svg {
         transition: transform 210ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .app-ui.outlet-welcome h1 {
+        text-align: left;
+      }
+
+      .app-ui.outlet-welcome h1::after {
+        margin-left: 0;
+      }
+
+      .app-ui button.outlet-start-button:hover {
+        box-shadow: 0 18px 32px rgba(14, 123, 193, 0.28) !important;
       }
 
       .app-ui .landing-partner-cta {
@@ -1325,6 +1332,7 @@ function AppPolishStyles() {
 function App() {
   const [screen, setScreen] = useState<Screen>("landing");
   const [selectedOutletId, setSelectedOutletId] = useState<string | null>(null);
+  const [bodyPhoto, setBodyPhoto] = useState<string | null>(null);
   const [selectedFabricName, setSelectedFabricName] = useState<string | null>(null);
 
   const selectedOutlet = useMemo(
@@ -1407,6 +1415,8 @@ function App() {
 
         {screen === "bodyScannerMeasure" && (
           <BodyScannerMeasureScreen
+            photo={bodyPhoto}
+            onPhotoChange={setBodyPhoto}
             onBack={() => resetReviewReturnAndGo("bodyScannerStart")}
             onContinue={() => resetReviewReturnAndGo("fabric")}
           />
@@ -1664,20 +1674,13 @@ function OutletCard({ outlet, onSelect }: { outlet: Outlet; onSelect: () => void
       <div className="relative h-[78px] w-full shrink-0" style={{ background: outletAccentGradient[outlet.accent] }}>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_-20%,rgba(255,255,255,0.35),transparent_45%)]" />
 
-        <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-white/92 px-2.5 py-1 shadow-[0_6px_14px_rgba(6,27,58,0.10)]">
-          <span className={`h-1.5 w-1.5 rounded-full ${outlet.openNow ? "bg-[#78BE43]" : "bg-[#94A3AD]"}`} />
-          <span className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-[#14213D]">
-            {outlet.openNow ? "Open now" : "Closed"}
-          </span>
-        </span>
-
         <div className="absolute -bottom-6 left-4 flex h-14 w-14 items-center justify-center rounded-[17px] border border-[#DDEBF2] bg-white shadow-[0_10px_22px_rgba(6,27,58,0.12)]">
-          <span
+          <div
             className="text-[22px] leading-none text-[#14213D]"
             style={{ fontFamily: '"DM Serif Display", Georgia, serif' }}
           >
             {getOutletInitials(outlet.name)}
-          </span>
+          </div>
         </div>
       </div>
 
@@ -1724,6 +1727,93 @@ function OutletCard({ outlet, onSelect }: { outlet: Outlet; onSelect: () => void
         </div>
       </div>
     </button>
+  );
+}
+
+const showcaseMeasurements = [
+  { label: "Height", value: `5'5"`, fill: "72%" },
+  { label: "Bust", value: "36 in", fill: "58%" },
+  { label: "Waist", value: "30 in", fill: "46%" },
+];
+
+const showcaseSwatches: FabricItem["color"][] = ["Pink", "Gold", "Mint", "Purple", "Navy"];
+
+// Brand-neutral hero visual: shows the MultiFe experience instead of any outlet's photography.
+function LandingHeroShowcase() {
+  return (
+    <div
+      className="relative mx-auto w-full max-w-[420px] overflow-hidden rounded-[26px] p-4 shadow-[0_18px_40px_rgba(6,54,90,0.22)] md:p-6"
+      style={{ background: "linear-gradient(155deg, #06365A 0%, #0E7BC1 58%, #10B6D9 100%)" }}
+      aria-hidden="true"
+    >
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_90%_0%,rgba(255,255,255,0.28),transparent_42%),radial-gradient(circle_at_0%_100%,rgba(242,106,33,0.22),transparent_45%)]" />
+      <div
+        className="pointer-events-none absolute -bottom-6 -right-2 select-none text-[96px] leading-none text-white/10 md:text-[120px]"
+        style={{ fontFamily: '"DM Serif Display", Georgia, serif' }}
+      >
+        MultiFe
+      </div>
+
+      <div className="relative z-10 flex flex-col gap-3 md:gap-4">
+        <div className="w-[94%] rounded-[18px] bg-white/95 p-3.5 md:w-[86%] shadow-[0_12px_26px_rgba(6,27,58,0.18)]">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-[#EAF8FE] text-[#0E7BC1]">
+                <Ruler className="h-4 w-4" strokeWidth={2} />
+              </span>
+              <span className="whitespace-nowrap text-[12.5px] font-extrabold text-[#14213D]">Smart sizing</span>
+            </div>
+            <span className="rounded-full bg-[#EEF9E8] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.1em] text-[#5B9832]">
+              Measured
+            </span>
+          </div>
+          <div className="mt-3 space-y-2">
+            {showcaseMeasurements.map((row) => (
+              <div key={row.label}>
+                <div className="flex items-center justify-between text-[10.5px] font-bold">
+                  <span className="text-[#667889]">{row.label}</span>
+                  <span className="text-[#14213D]">{row.value}</span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#EAF8FE]">
+                  <div className="h-full rounded-full bg-[linear-gradient(90deg,#0E7BC1,#10B6D9)]" style={{ width: row.fill }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="ml-auto w-[88%] rounded-[18px] bg-white/95 p-3.5 md:w-[80%] shadow-[0_12px_26px_rgba(6,27,58,0.18)]">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-[#FFF0E7] text-[#F26A21]">
+              <Scissors className="h-4 w-4" strokeWidth={2} />
+            </span>
+            <span className="text-[12.5px] font-extrabold text-[#14213D]">Fabric &amp; style</span>
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            {showcaseSwatches.map((color, index) => (
+              <span
+                key={color}
+                className={`h-7 w-7 rounded-full border border-white shadow-[0_3px_8px_rgba(6,27,58,0.14)] ${
+                  index === 0 ? "outline-2 outline-offset-2 outline-[#0E7BC1] outline-solid" : ""
+                }`}
+                style={{ background: fabricColorHexMap[color] }}
+              />
+            ))}
+          </div>
+          <p className="mt-2.5 text-[10.5px] font-semibold text-[#667889]">Kurti · V-neck · Full sleeves</p>
+        </div>
+
+        <div className="flex w-[86%] items-center gap-3 rounded-[18px] md:w-[78%] bg-white/95 p-3.5 shadow-[0_12px_26px_rgba(6,27,58,0.18)]">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5FAE3F] text-white">
+            <Check className="h-5 w-5" strokeWidth={2.6} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[12.5px] font-extrabold text-[#14213D]">Order confirmed</p>
+            <p className="text-[10.5px] font-semibold text-[#667889]">Stitched to your exact fit</p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1822,23 +1912,7 @@ function LandingScreen({ onSelectOutlet }: { onSelectOutlet: (outletId: string) 
           </div>
         </div>
 
-        <div className="landing-hero-art relative mx-auto w-full max-w-[420px] overflow-hidden rounded-[26px] border border-[#DDEBF2] bg-[linear-gradient(180deg,#F6FCFF,#FFF8EF)] shadow-[0_14px_32px_rgba(6,27,58,0.08)]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(21,169,214,0.16),transparent_45%)]" />
-          <img
-            src={`${import.meta.env.BASE_URL}assets/first-page-qr-code-page.png`}
-            alt="Woman wearing a cream embroidered eastern outfit"
-            className="relative z-10 mx-auto h-[220px] w-full object-contain object-center md:h-[340px]"
-            loading="eager"
-            decoding="async"
-            draggable={false}
-          />
-          <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-white/94 px-3.5 py-2 shadow-[0_8px_18px_rgba(6,27,58,0.10)]">
-            <span className="h-2 w-2 rounded-full bg-[#78BE43]" />
-            <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#14213D]">
-              Exclusively for Women
-            </span>
-          </div>
-        </div>
+        <LandingHeroShowcase />
       </section>
 
       <section className="mt-9 md:mt-12" aria-labelledby="landing-outlets-title">
@@ -1950,36 +2024,35 @@ function LandingScreen({ onSelectOutlet }: { onSelectOutlet: (outletId: string) 
         </div>
       </section>
 
-      <footer className="mt-8 flex flex-col items-center gap-2 border-t border-[#E9F4F8] pt-5 text-center md:flex-row md:justify-between md:text-left">
+      <footer className="mt-8 border-t border-[#E9F4F8] pt-5 text-center">
         <p className="text-[11.5px] font-semibold text-[#667889]">
-          © {new Date().getFullYear()} MultiFe · Women&apos;s custom clothing
+          © MultiFe · Women&apos;s custom clothing
         </p>
-        <a
-          href={`${import.meta.env.BASE_URL}store`}
-          className="flex items-center gap-1 text-[12px] font-bold text-[#0E7BC1] hover:underline"
-        >
-          Partner sign in
-          <ChevronRight className="h-4 w-4" strokeWidth={2.2} />
-        </a>
       </footer>
     </PhoneFrame>
   );
 }
 
-function OutletBadge({ outlet }: { outlet: Outlet }) {
+function getFittingSteps(outlet: Outlet) {
+  return [
+    { icon: Ruler, title: "Smart body measurements", text: "A quick scan, double-checked by the shopkeeper." },
+    { icon: Tag, title: "Choose your fabric", text: `Browse ${outlet.fabricsCount}+ fabrics from ${outlet.name}.` },
+    { icon: Shirt, title: "Pick a dress style", text: "Kurtis, frocks, maxis, 2 and 3-piece suits and more." },
+    { icon: Scissors, title: "Customize every detail", text: "Neckline, sleeves, length, borders and dupatta." },
+    { icon: CreditCard, title: "Review & place your order", text: "Pay your way and receive your order ID instantly." },
+  ];
+}
+
+function StartFittingButton({ onClick, className = "" }: { onClick: () => void; className?: string }) {
   return (
-    <div className="mx-auto mt-4 flex w-fit max-w-full items-center gap-2 rounded-full border border-[#DDEBF2] bg-white py-1.5 pl-1.5 pr-3.5 shadow-[0_6px_14px_rgba(6,27,58,0.06)]">
-      <span
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
-        style={{ background: outletAccentGradient[outlet.accent] }}
-      >
-        {getOutletInitials(outlet.name)}
-      </span>
-      <span className="min-w-0 truncate text-[11.5px] font-bold text-[#14213D]">
-        {outlet.name}
-        <span className="font-semibold text-[#667889]"> · {outlet.city}</span>
-      </span>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`outlet-start-button flex h-12 items-center justify-center gap-2 rounded-[14px] bg-[#14213D] px-7 text-[14px] font-bold text-white ${className}`}
+    >
+      Start my fitting
+      <ArrowRight className="h-5 w-5" strokeWidth={2} />
+    </button>
   );
 }
 
@@ -1992,70 +2065,274 @@ function AssistedScreen({
   onBack: () => void;
   onContinue: () => void;
 }) {
+  // The app always picks an outlet before this screen; the fallback only guards a direct state reset.
+  const store = outlet ?? outlets[0];
+  const initials = getOutletInitials(store.name);
+  const steps = getFittingSteps(store);
+  const assurances = [
+    { icon: UserCheck, title: "Shopkeeper assisted", text: "Staff guide you through every choice." },
+    { icon: ShieldCheck, title: "Fit you can trust", text: "Measurements are reviewed before stitching." },
+    { icon: Truck, title: `Ready in ${store.deliveryDays}`, text: "Stitched to your size and delivered to you." },
+  ];
+
   return (
-    <PhoneFrame>
-      <div className="flex items-center justify-between">
+    <PhoneFrame
+      frameClassName="landing-phone-frame"
+      contentClassName="landing-content outlet-welcome px-5 pb-8 pt-14 md:px-10 md:pb-10 md:pt-8 lg:px-14"
+    >
+      <header className="flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={onBack}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-[#14213D] transition hover:bg-[#f1eee8]"
-          aria-label="Go back to outlets"
+          className="flex h-10 items-center gap-1.5 rounded-full border border-[#DDEBF2] bg-white pl-3 pr-4 text-[12.5px] font-bold text-[#14213D] shadow-[0_6px_16px_rgba(6,27,58,0.07)]"
+          aria-label="Go back to all outlets"
         >
-          <ArrowLeft className="h-6 w-6" strokeWidth={1.7} />
+          <ArrowLeft className="h-4 w-4" strokeWidth={2} />
+          All outlets
         </button>
 
-        <Globe2 className="h-7 w-7 text-[#14213D]" strokeWidth={1.6} />
-      </div>
-
-      <BrandHeader />
-
-      {outlet && <OutletBadge outlet={outlet} />}
-
-      <div className="mt-7 text-center">
-        <h2
-          className="text-[25px] font-semibold leading-[1.2] tracking-wide text-[#14213D]"
-          style={{ fontFamily: '"DM Serif Display", serif' }}
+        <div
+          className="hidden text-[26px] leading-none tracking-wide text-[#14213D] md:block"
+          style={{ fontFamily: '"DM Serif Display", Georgia, serif' }}
         >
-          Welcome to Shop-Assisted
-          <br />
-          Ordering
-        </h2>
+          MultiFe
+        </div>
 
-        <div className="mt-5 flex items-center justify-center gap-5">
-          <span className="h-px w-[78px] bg-[#15A9D6] text-white" />
-          <span className="text-[16px] text-[#15A9D6]">✦</span>
-          <span className="h-px w-[78px] bg-[#15A9D6] text-white" />
+        <button
+          type="button"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-[#DDEBF2] bg-white text-[#14213D] shadow-[0_6px_16px_rgba(6,27,58,0.07)]"
+          aria-label="Change language"
+        >
+          <Globe2 className="h-5 w-5" strokeWidth={1.7} />
+        </button>
+      </header>
+
+      <section className="mt-5 overflow-hidden rounded-[26px] border border-[#DDEBF2] bg-white shadow-[0_18px_40px_rgba(6,27,58,0.09)] md:mt-7">
+        <div className="relative h-[148px] overflow-hidden md:h-[190px]" style={{ background: outletAccentGradient[store.accent] }}>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_-10%,rgba(255,255,255,0.38),transparent_45%),radial-gradient(circle_at_0%_120%,rgba(255,255,255,0.18),transparent_40%)]" />
+          <div
+            className="pointer-events-none absolute -bottom-10 right-3 select-none text-[150px] leading-none text-white/15 md:right-10 md:text-[200px]"
+            style={{ fontFamily: '"DM Serif Display", Georgia, serif' }}
+            aria-hidden="true"
+          >
+            {initials}
+          </div>
+
+          <span className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-white/92 px-3 py-1.5 shadow-[0_6px_14px_rgba(6,27,58,0.10)] md:left-6 md:top-5">
+            <UserCheck className="h-3.5 w-3.5 text-[#0E7BC1]" strokeWidth={2.2} />
+            <span className="text-[9.5px] font-extrabold uppercase tracking-[0.12em] text-[#14213D]">Shop-assisted ordering</span>
+          </span>
+        </div>
+
+        <div className="px-5 pb-5 md:px-8 md:pb-7">
+          <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end md:gap-8">
+            <div className="min-w-0">
+              <div className="relative z-10 -mt-11 flex h-[84px] w-[84px] items-center justify-center rounded-[24px] border border-[#DDEBF2] bg-white shadow-[0_12px_26px_rgba(6,27,58,0.14)]">
+                <div className="text-[32px] leading-none text-[#14213D]" style={{ fontFamily: '"DM Serif Display", Georgia, serif' }}>
+                  {initials}
+                </div>
+              </div>
+
+              <p className="mt-4 text-[11px] font-extrabold uppercase tracking-[0.18em] text-[#15A9D6]">Welcome to</p>
+              <h1 className="mt-1 text-[30px] leading-[1.1] md:text-[40px]">{store.name}</h1>
+
+              <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] font-semibold text-[#667889]">
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-[#0E7BC1]" strokeWidth={2} />
+                {store.area}, {store.city}
+              </p>
+
+              <p className="mt-3 max-w-[520px] text-[13.5px] font-medium leading-6 text-[#667889] md:text-[14.5px]">{store.tagline}</p>
+
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {store.specialties.map((specialty) => (
+                  <span key={specialty} className="rounded-full bg-[#EAF8FE] px-2.5 py-1 text-[10.5px] font-bold text-[#0E7BC1]">
+                    {specialty}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <StartFittingButton onClick={onContinue} className="w-full md:w-auto" />
+          </div>
+
+          <div className="mt-5 grid grid-cols-3 divide-x divide-[#E9F4F8] rounded-[18px] border border-[#DDEBF2] bg-[#F6FCFF] py-3">
+            {[
+              {
+                value: (
+                  <span className="flex items-center justify-center gap-1">
+                    <Star className="h-4 w-4 text-[#F26A21]" fill="currentColor" strokeWidth={0} />
+                    {store.rating.toFixed(1)}
+                  </span>
+                ),
+                label: "Rating",
+              },
+              { value: `${store.fabricsCount}+`, label: "Fabrics" },
+              { value: store.deliveryDays, label: "Delivery" },
+            ].map((stat) => (
+              <div key={stat.label} className="px-2 text-center">
+                <div className="whitespace-nowrap text-[13.5px] font-extrabold text-[#14213D] min-[380px]:text-[15px] md:text-[17px]">{stat.value}</div>
+                <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#94A3AD]">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="mt-6 grid gap-5 md:mt-8 md:grid-cols-[1.1fr_0.9fr] md:gap-6">
+        <section
+          className="rounded-[24px] border border-[#DDEBF2] bg-white px-5 py-6 shadow-[0_12px_28px_rgba(6,27,58,0.06)] md:px-7"
+          aria-labelledby="fitting-journey-title"
+        >
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-[#15A9D6]">Your fitting journey</p>
+          <h2 id="fitting-journey-title" className="mt-1 text-[20px] text-[#14213D] md:text-[23px]">
+            From measurements to your perfect outfit
+          </h2>
+
+          <ol className="mt-5">
+            {steps.map(({ icon: Icon, title, text }, index) => (
+              <li key={title} className="relative flex gap-3.5 pb-5 last:pb-0">
+                {index < steps.length - 1 && (
+                  <span className="absolute left-[19px] top-11 bottom-1 w-px bg-[linear-gradient(180deg,#10B6D9,rgba(16,182,217,0.12))]" aria-hidden="true" />
+                )}
+                <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#EAF8FE] text-[#0E7BC1]">
+                  <Icon className="h-5 w-5" strokeWidth={1.9} />
+                </span>
+                <div className="min-w-0 pt-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10.5px] font-extrabold text-[#94A3AD]">0{index + 1}</span>
+                    <h3 className="text-[14px] font-extrabold leading-tight text-[#14213D] md:text-[15px]">{title}</h3>
+                  </div>
+                  <p className="mt-1 text-[12px] font-medium leading-[1.5] text-[#667889] md:text-[12.5px]">{text}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <div className="flex flex-col gap-5">
+          <div className="relative overflow-hidden rounded-[24px] border border-[#DDEBF2] bg-[linear-gradient(180deg,#F6FCFF,#FFF8EF)] shadow-[0_12px_28px_rgba(6,27,58,0.06)]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_12%,rgba(21,169,214,0.16),transparent_48%)]" />
+            <img
+              src={`${import.meta.env.BASE_URL}assets/first-page-qr-code-page.png`}
+              alt="Woman wearing a custom-stitched cream embroidered outfit"
+              className="relative z-10 mx-auto h-[230px] w-full object-contain object-center md:h-[250px]"
+              loading="eager"
+              decoding="async"
+              draggable={false}
+            />
+            <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-white/94 px-3.5 py-2 shadow-[0_8px_18px_rgba(6,27,58,0.10)]">
+              <Sparkles className="h-3.5 w-3.5 text-[#0E7BC1]" strokeWidth={2} />
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#14213D]">Stitched to your fit</span>
+            </div>
+          </div>
+
+          <section
+            className="rounded-[24px] border border-[#DDEBF2] bg-white px-5 py-5 shadow-[0_12px_28px_rgba(6,27,58,0.06)]"
+            aria-label="Why customers choose shop-assisted ordering"
+          >
+            <ul className="space-y-4">
+              {assurances.map(({ icon: Icon, title, text }) => (
+                <li key={title} className="flex gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EEF9E8] text-[#5FAE3F]">
+                    <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-[13.5px] font-extrabold leading-tight text-[#14213D]">{title}</h3>
+                    <p className="mt-0.5 text-[12px] font-medium leading-[1.45] text-[#667889]">{text}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
       </div>
 
-      <div className="relative mt-4 flex h-[260px] justify-center overflow-hidden">
-        <img
-          src={`${import.meta.env.BASE_URL}assets/first-page-qr-code-page.png`}
-          alt="Woman wearing a cream embroidered eastern outfit"
-          className="h-full w-full object-contain object-center"
-        />
-      </div>
-
-      <div className="mt-5 overflow-hidden rounded-[20px] border border-[#DDEBF2] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
-        <img
-          src={`${import.meta.env.BASE_URL}assets/page-2-workflow-shopkeeper-assistance.png`}
-          alt="Shopkeeper Assistance workflow"
-          className="block w-full object-contain"
-        />
-      </div>
-
-      <button
-        type="button"
-        onClick={onContinue}
-        className="compact-cta-button mt-5 flex h-[40px] w-[78%] mx-auto items-center justify-center gap-2 rounded-[14px] bg-[#14213D] text-[14px] font-semibold text-white shadow-[0_8px_18px_rgba(7,25,54,0.16)] transition hover:scale-[1.01]"
-      >
-        Continue
-        <ArrowRight className="h-5 w-5" strokeWidth={1.9} />
-      </button>
+      <section className="mt-6 rounded-[24px] border border-[#DDEBF2] bg-white px-5 py-6 text-center shadow-[0_12px_28px_rgba(6,27,58,0.06)] md:mt-8 md:flex md:items-center md:justify-between md:px-8 md:text-left">
+        <div>
+          <h2 className="text-[18px] text-[#14213D] md:text-[21px]">Ready when you are</h2>
+          <p className="mt-1 text-[12.5px] font-medium text-[#667889] md:text-[13.5px]">
+            Stand in front of the camera and the shopkeeper will take it from there.
+          </p>
+        </div>
+        <StartFittingButton onClick={onContinue} className="mx-auto mt-4 w-full md:mx-0 md:mt-0 md:w-auto" />
+      </section>
     </PhoneFrame>
   );
 }
 
+
+const scanGuidelines = [
+  { y: 80, label: "Shoulder" },
+  { y: 114, label: "Bust" },
+  { y: 152, label: "Waist" },
+  { y: 204, label: "Hip" },
+];
+
+// Drawn body outline used as a pose guide; avoids showing any real person or brand photography.
+function BodyGuideFigure({
+  showGuides = true,
+  onCamera = false,
+  className = "",
+}: {
+  showGuides?: boolean;
+  onCamera?: boolean;
+  className?: string;
+}) {
+  const fillId = useId();
+  const outlineColor = onCamera ? "#FFFFFF" : "#0E7BC1";
+
+  return (
+    <svg viewBox="0 0 200 360" className={className} role="img" aria-label="Pose guide: stand straight with arms slightly away from the body">
+      <defs>
+        <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={onCamera ? "#FFFFFF" : "#10B6D9"} stopOpacity={onCamera ? 0.12 : 0.2} />
+          <stop offset="100%" stopColor={onCamera ? "#FFFFFF" : "#0E7BC1"} stopOpacity={onCamera ? 0.04 : 0.08} />
+        </linearGradient>
+      </defs>
+
+      {showGuides && (
+        <g>
+          <line x1="22" y1="18" x2="22" y2="338" stroke="#F26A21" strokeWidth="1.2" strokeDasharray="3 3" />
+          <path d="M17 24 L22 16 L27 24 M17 332 L22 340 L27 332" fill="none" stroke="#F26A21" strokeWidth="1.2" />
+          {scanGuidelines.map((guide) => (
+            <g key={guide.label}>
+              <line x1="34" y1={guide.y} x2="150" y2={guide.y} stroke="#10B6D9" strokeWidth="1" strokeDasharray="4 3" opacity="0.75" />
+              <circle cx="150" cy={guide.y} r="2.2" fill="#0E7BC1" />
+              <text x="155" y={guide.y + 3} fontSize="8.5" fontWeight="700" fill="#0E7BC1" fontFamily="Plus Jakarta Sans, Inter, sans-serif">
+                {guide.label}
+              </text>
+            </g>
+          ))}
+        </g>
+      )}
+
+      <g
+        fill={`url(#${fillId})`}
+        stroke={outlineColor}
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+        strokeDasharray={onCamera ? "5 3" : undefined}
+      >
+        <circle cx="100" cy="38" r="19" />
+        <rect x="92" y="55" width="16" height="14" rx="5" />
+        <path d="M64 78 C80 68 120 68 136 78 L128 152 L141 254 L59 254 L72 152 Z" />
+        <path d="M64 80 L45 198 L56 201 L73 108 Z" />
+        <path d="M136 80 L155 198 L144 201 L127 108 Z" />
+        <path d="M78 254 L82 334 L97 334 L99 254 Z" />
+        <path d="M101 254 L103 334 L118 334 L122 254 Z" />
+        <path d="M78 334 L97 334 L98 340 L74 340 Z M103 334 L118 334 L122 340 L102 340 Z" />
+      </g>
+    </svg>
+  );
+}
+
+const scanTips = [
+  { icon: PersonStanding, title: "Stand straight", text: "Face the camera, feet slightly apart, arms a little away from your body." },
+  { icon: Maximize2, title: "Full body in frame", text: "Keep head to toe visible, about 2–3 metres from the camera." },
+  { icon: Shirt, title: "Wear fitted clothing", text: "Remove dupatta, shawls or bulky layers for accurate sizing." },
+  { icon: Sun, title: "Use good lighting", text: "A bright, evenly lit space with a plain background works best." },
+  { icon: Smartphone, title: "Hold the camera level", text: "Keep it steady at chest height, or ask the shopkeeper to help." },
+];
 
 function BodyScannerStartScreen({
   onBack,
@@ -2065,97 +2342,105 @@ function BodyScannerStartScreen({
   onOpenScanner: () => void;
 }) {
   return (
-    <PhoneFrame>
-      <div className="flex items-center justify-between">
+    <PhoneFrame
+      frameClassName="landing-phone-frame"
+      contentClassName="landing-content scan-guide px-5 pb-8 pt-14 md:px-10 md:pb-10 md:pt-8 lg:px-14"
+    >
+      <header className="flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={onBack}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-[#14213D] transition hover:bg-[#f1eee8]"
-          aria-label="Go back to shop assisted intro"
+          className="flex h-10 items-center gap-1.5 rounded-full border border-[#DDEBF2] bg-white pl-3 pr-4 text-[12.5px] font-bold text-[#14213D] shadow-[0_6px_16px_rgba(6,27,58,0.07)]"
+          aria-label="Go back to store page"
         >
-          <ArrowLeft className="h-6 w-6" strokeWidth={1.7} />
+          <ArrowLeft className="h-4 w-4" strokeWidth={2} />
+          Back
         </button>
 
-        <Globe2 className="h-7 w-7 text-[#14213D]" strokeWidth={1.6} />
-      </div>
-
-      <BrandHeader />
-
-      <div className="mt-6 text-center">
-        <p className="text-[11px] font-extrabold uppercase tracking-[0.22em] text-[#15A9D6]">
-          Smart Body Scanner
-        </p>
-        <h2
-          className="mt-1 text-[25px] font-semibold leading-[1.15] tracking-wide text-[#14213D]"
-          style={{ fontFamily: '"DM Serif Display", serif' }}
+        <div
+          className="hidden text-[26px] leading-none tracking-wide text-[#14213D] md:block"
+          style={{ fontFamily: '"DM Serif Display", Georgia, serif' }}
         >
-          Stand straight and scan
-          <br />
-          customer measurements
-        </h2>
-        <p className="mx-auto mt-3 max-w-[305px] text-[12.5px] font-medium leading-5 text-[#667889]">
-          Place the customer inside the frame. The next screen will calculate measurements and allow instant manual adjustment.
+          MultiFe
+        </div>
+
+        <button
+          type="button"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-[#DDEBF2] bg-white text-[#14213D] shadow-[0_6px_16px_rgba(6,27,58,0.07)]"
+          aria-label="Change language"
+        >
+          <Globe2 className="h-5 w-5" strokeWidth={1.7} />
+        </button>
+      </header>
+
+      <div className="mt-6 text-center md:mt-8">
+        <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-[#15A9D6]">Smart body scan</p>
+        <h1 className="mt-2 text-[28px] leading-[1.12] md:text-[38px]">Get ready for your scan</h1>
+        <p className="mx-auto mt-3 max-w-[520px] text-[13.5px] font-medium leading-6 text-[#667889] md:text-[14.5px]">
+          A clear full-body photo gives the most accurate measurements. Follow these quick tips before you start.
         </p>
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-[28px] border border-[#DDEBF2] bg-white p-3 shadow-[0_14px_32px_rgba(6,27,58,0.08)]">
-        <div className="relative h-[340px] overflow-hidden rounded-[24px] bg-[linear-gradient(180deg,#F6FCFF,#FFF8EF)]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_6%,rgba(21,169,214,0.17),transparent_34%)]" />
+      <div className="mt-6 grid items-start gap-5 md:mt-8 md:grid-cols-[0.9fr_1.1fr] md:gap-8">
+        <div className="relative mx-auto w-full max-w-[360px] overflow-hidden rounded-[26px] border border-[#DDEBF2] bg-[linear-gradient(180deg,#F6FCFF,#FFF8EF)] p-4 shadow-[0_14px_32px_rgba(6,27,58,0.08)]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(21,169,214,0.16),transparent_42%)]" />
+          <div className="pointer-events-none absolute left-4 top-4 h-8 w-8 rounded-tl-[10px] border-l-2 border-t-2 border-[#10B6D9]" />
+          <div className="pointer-events-none absolute right-4 top-4 h-8 w-8 rounded-tr-[10px] border-r-2 border-t-2 border-[#10B6D9]" />
+          <div className="pointer-events-none absolute bottom-4 left-4 h-8 w-8 rounded-bl-[10px] border-b-2 border-l-2 border-[#F26A21]" />
+          <div className="pointer-events-none absolute bottom-4 right-4 h-8 w-8 rounded-br-[10px] border-b-2 border-r-2 border-[#F26A21]" />
 
-          <div className="absolute inset-x-8 top-7 bottom-7 rounded-[34px] border border-dashed border-[#15A9D6]/55" />
-          <div className="absolute left-7 top-7 h-9 w-9 border-l-2 border-t-2 border-[#15A9D6]" />
-          <div className="absolute right-7 top-7 h-9 w-9 border-r-2 border-t-2 border-[#15A9D6]" />
-          <div className="absolute bottom-7 left-7 h-9 w-9 border-b-2 border-l-2 border-[#F26A21]" />
-          <div className="absolute bottom-7 right-7 h-9 w-9 border-b-2 border-r-2 border-[#F26A21]" />
-
-          <img
-            src={`${import.meta.env.BASE_URL}assets/page-3-measurement.png`}
-            alt="Customer measurement scanning guide"
-            className="relative z-10 mx-auto h-full w-[72%] object-contain object-center"
-            loading="eager"
-            decoding="async"
-            draggable={false}
-          />
-
-          <div className="scanner-line absolute left-6 right-6 top-1/2 z-20 h-px bg-[#15A9D6]/80 shadow-[0_0_18px_rgba(21,169,214,0.65)]" />
-
-          <div className="absolute left-4 top-4 z-30 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 shadow-[0_8px_18px_rgba(6,27,58,0.08)] backdrop-blur">
-            <span className="h-2 w-2 rounded-full bg-[#78BE43]" />
-            <span className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-[#14213D]">Scanner Ready</span>
+          <div className="relative z-10 flex items-center justify-center pt-1">
+            <span className="flex items-center gap-2 rounded-full bg-white/92 px-3 py-1.5 shadow-[0_8px_18px_rgba(6,27,58,0.08)]">
+              <span className="h-2 w-2 rounded-full bg-[#78BE43]" />
+              <span className="text-[9.5px] font-extrabold uppercase tracking-[0.14em] text-[#14213D]">Pose guide</span>
+            </span>
           </div>
 
-          <div className="absolute bottom-4 left-1/2 z-30 grid w-[86%] -translate-x-1/2 grid-cols-3 gap-2">
-            {["Height", "Shoulder", "Sleeve"].map((item) => (
-              <div key={item} className="rounded-[13px] bg-white/90 px-2 py-2 text-center shadow-[0_8px_18px_rgba(6,27,58,0.06)] backdrop-blur">
-                <p className="text-[7px] font-extrabold uppercase tracking-[0.12em] text-[#94A3AD]">{item}</p>
-                <p className="mt-0.5 text-[10px] font-bold text-[#14213D]">Detect</p>
-              </div>
-            ))}
-          </div>
+          <BodyGuideFigure className="relative z-10 mx-auto mt-2 block h-[320px] w-full md:h-[380px]" />
         </div>
 
-        <div className="mt-3 rounded-[18px] bg-[#F6FCFF] px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-[#15A9D6]" strokeWidth={2} />
-            <p className="text-[12px] font-bold text-[#14213D]">Scan guidance</p>
+        <div>
+          <ol className="space-y-3">
+            {scanTips.map(({ icon: Icon, title, text }, index) => (
+              <li
+                key={title}
+                className="flex gap-3.5 rounded-[18px] border border-[#DDEBF2] bg-white px-4 py-3.5 shadow-[0_8px_18px_rgba(6,27,58,0.05)]"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#EAF8FE] text-[#0E7BC1]">
+                  <Icon className="h-5 w-5" strokeWidth={1.9} />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10.5px] font-extrabold text-[#94A3AD]">0{index + 1}</span>
+                    <h3 className="text-[14px] font-extrabold leading-tight text-[#14213D]">{title}</h3>
+                  </div>
+                  <p className="mt-1 text-[12px] font-medium leading-[1.5] text-[#667889] md:text-[12.5px]">{text}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+
+          <div className="mt-4 flex items-start gap-3 rounded-[16px] border border-[#78BE43]/30 bg-[#EEF9E8] px-4 py-3">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#5B9832]" strokeWidth={2.2} />
+            <p className="text-[12px] font-semibold leading-5 text-[#526172]">
+              Your photo is only used to take measurements and stays on this device.
+            </p>
           </div>
-          <p className="mt-1 text-[11px] font-medium leading-4 text-[#667889]">
-            Customer should stand straight, arms relaxed, full body visible, and feet inside the frame.
-          </p>
+
+          <button
+            type="button"
+            onClick={onOpenScanner}
+            className="outlet-start-button mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-[#14213D] px-7 text-[14px] font-bold text-white"
+          >
+            Start scan
+            <ArrowRight className="h-5 w-5" strokeWidth={2} />
+          </button>
         </div>
       </div>
-
-      <button
-        type="button"
-        onClick={onOpenScanner}
-        className="compact-cta-button mt-5 flex h-[40px] w-[78%] mx-auto items-center justify-center gap-2 rounded-[14px] bg-[#14213D] text-[13px] font-semibold text-white shadow-[0_8px_18px_rgba(7,25,54,0.16)] transition hover:scale-[1.01]"
-      >
-        Start Scan
-        <ArrowRight className="h-5 w-5" strokeWidth={1.9} />
-      </button>
     </PhoneFrame>
   );
 }
+
 
 type ScannerMeasurement = {
   key: string;
@@ -2177,13 +2462,6 @@ const defaultScannerMeasurements: ScannerMeasurement[] = [
   { key: "lowerLength", label: "Lower Length", value: 39, unit: "in", min: 32, max: 46, step: 0.5 },
 ];
 
-
-function formatHeightDisplay(value: number) {
-  const feet = Math.floor(value / 12);
-  const inchesValue = Number((value - feet * 12).toFixed(1));
-  const inches = Number.isInteger(inchesValue) ? String(inchesValue) : inchesValue.toFixed(1).replace(/\.0$/, "");
-  return `${feet}'${inches}"`;
-}
 
 function formatMeasurementValue(value: number, unit: string) {
   const formatted = Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, "");
@@ -2265,10 +2543,300 @@ function MeasurementAdjustRow({
   );
 }
 
+type CameraFacing = "user" | "environment";
+
+const MAX_PHOTO_SIDE = 1600;
+
+function getCameraErrorMessage(error: unknown) {
+  const name = error instanceof DOMException ? error.name : "";
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return "Camera access was blocked. Allow camera permission in your browser settings, or upload a photo instead.";
+  }
+  if (name === "NotFoundError" || name === "OverconstrainedError") {
+    return "No camera was found on this device. Please upload a photo instead.";
+  }
+  if (name === "NotReadableError") {
+    return "The camera is being used by another app. Close it and try again, or upload a photo.";
+  }
+  return "The camera could not be opened. Please try again or upload a photo.";
+}
+
+function readPhotoFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("Could not read this photo."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function BodyPhotoCapture({
+  photo,
+  onPhotoChange,
+}: {
+  photo: string | null;
+  onPhotoChange: (photo: string | null) => void;
+}) {
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [facing, setFacing] = useState<CameraFacing>("environment");
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState("");
+  const streamRef = useRef<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const captureInputRef = useRef<HTMLInputElement | null>(null);
+
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setStream(null);
+  };
+
+  // Release the camera when the customer leaves this screen.
+  useEffect(() => () => streamRef.current?.getTracks().forEach((track) => track.stop()), []);
+
+  const attachVideo = useCallback(
+    (element: HTMLVideoElement | null) => {
+      videoRef.current = element;
+      if (element && stream && element.srcObject !== stream) {
+        element.srcObject = stream;
+        void element.play().catch(() => undefined);
+      }
+    },
+    [stream]
+  );
+
+  const startCamera = async (nextFacing: CameraFacing) => {
+    setError("");
+
+    // Live camera needs HTTPS or localhost; elsewhere fall back to the device's own camera app.
+    if (!navigator.mediaDevices?.getUserMedia) {
+      captureInputRef.current?.click();
+      return;
+    }
+
+    setStarting(true);
+    try {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      const media = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: nextFacing }, width: { ideal: 1080 }, height: { ideal: 1440 } },
+        audio: false,
+      });
+      streamRef.current = media;
+      setStream(media);
+      setFacing(nextFacing);
+    } catch (cameraError) {
+      setError(getCameraErrorMessage(cameraError));
+      stopCamera();
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+
+    const scale = Math.min(1, MAX_PHOTO_SIDE / Math.max(video.videoWidth, video.videoHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    // Front cameras preview mirrored, so save the photo the way the customer saw it.
+    if (facing === "user") {
+      context.translate(canvas.width, 0);
+      context.scale(-1, 1);
+    }
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    onPhotoChange(canvas.toDataURL("image/jpeg", 0.9));
+    stopCamera();
+  };
+
+  const handleFile = async (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image file (JPG, PNG or HEIC).");
+      return;
+    }
+    setError("");
+    try {
+      onPhotoChange(await readPhotoFile(file));
+    } catch (readError) {
+      setError(readError instanceof Error ? readError.message : "Could not read this photo.");
+    }
+  };
+
+  return (
+    <section className="rounded-[24px] border border-[#DDEBF2] bg-white p-4 shadow-[0_12px_28px_rgba(6,27,58,0.06)] md:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#15A9D6]">Step 1</p>
+          <h2 className="mt-0.5 text-[16px] text-[#14213D]">Full-body photo</h2>
+        </div>
+        <span
+          className={`rounded-full px-3 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.12em] ${
+            photo ? "bg-[#EEF9E8] text-[#5B9832]" : "bg-[#F3F8FB] text-[#94A3AD]"
+          }`}
+        >
+          {photo ? "Photo added" : "No photo yet"}
+        </span>
+      </div>
+
+      {stream ? (
+        <div className="mt-4">
+          <div className="relative mx-auto aspect-[3/4] w-full max-w-[420px] overflow-hidden rounded-[20px] bg-[#06365A]">
+            <video
+              ref={attachVideo}
+              autoPlay
+              playsInline
+              muted
+              className="h-full w-full object-cover"
+              style={facing === "user" ? { transform: "scaleX(-1)" } : undefined}
+            />
+            <BodyGuideFigure
+              showGuides={false}
+              onCamera
+              className="pointer-events-none absolute inset-0 m-auto h-[88%] w-auto opacity-90 drop-shadow-[0_0_6px_rgba(6,54,90,0.55)]"
+            />
+            <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-white/92 px-3 py-1.5">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-[#F26A21]" />
+              <span className="text-[9.5px] font-extrabold uppercase tracking-[0.12em] text-[#14213D]">Live camera</span>
+            </span>
+            <p className="absolute inset-x-3 bottom-3 rounded-[12px] bg-[#06365A]/70 px-3 py-2 text-center text-[11px] font-semibold text-white">
+              Line up your body with the outline, then capture.
+            </p>
+          </div>
+
+          <div className="mt-4 flex items-center justify-center gap-6">
+            <button
+              type="button"
+              onClick={stopCamera}
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-[#DDEBF2] bg-white text-[#14213D]"
+              aria-label="Close camera"
+            >
+              <X className="h-5 w-5" strokeWidth={2} />
+            </button>
+            <button
+              type="button"
+              onClick={capturePhoto}
+              className="camera-shutter flex h-[68px] w-[68px] items-center justify-center rounded-full border-4 border-[#0E7BC1] bg-white"
+              aria-label="Capture photo"
+            >
+              <span className="h-[50px] w-[50px] rounded-full bg-[linear-gradient(135deg,#06365A,#0E7BC1_58%,#10B6D9)]" />
+            </button>
+            <button
+              type="button"
+              onClick={() => void startCamera(facing === "user" ? "environment" : "user")}
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-[#DDEBF2] bg-white text-[#14213D]"
+              aria-label="Switch between front and back camera"
+            >
+              <RefreshCw className="h-5 w-5" strokeWidth={2} />
+            </button>
+          </div>
+        </div>
+      ) : photo ? (
+        <div className="mt-4">
+          <div className="relative mx-auto aspect-[3/4] w-full max-w-[420px] overflow-hidden rounded-[20px] border border-[#DDEBF2] bg-[#F6FCFF]">
+            <img src={photo} alt="Your full-body photo" className="h-full w-full object-contain" />
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => void startCamera(facing)}
+              className="flex h-10 items-center justify-center gap-1.5 rounded-[12px] border border-[#DDEBF2] bg-white text-[12px] font-bold text-[#14213D]"
+            >
+              <RotateCcw className="h-4 w-4" strokeWidth={2} />
+              Retake
+            </button>
+            <button
+              type="button"
+              onClick={() => uploadInputRef.current?.click()}
+              className="flex h-10 items-center justify-center gap-1.5 rounded-[12px] border border-[#DDEBF2] bg-white text-[12px] font-bold text-[#14213D]"
+            >
+              <ImageUp className="h-4 w-4" strokeWidth={2} />
+              Replace
+            </button>
+            <button
+              type="button"
+              onClick={() => onPhotoChange(null)}
+              className="flex h-10 items-center justify-center gap-1.5 rounded-[12px] border border-[#DDEBF2] bg-white text-[12px] font-bold text-[#C94B43]"
+            >
+              <Trash2 className="h-4 w-4" strokeWidth={2} />
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => void startCamera(facing)}
+            disabled={starting}
+            className="photo-option flex flex-col items-center justify-center rounded-[20px] border border-dashed border-[#0E7BC1]/45 bg-[#F6FCFF] px-3 py-6 text-center md:py-9"
+          >
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,#06365A,#0E7BC1_58%,#10B6D9)] text-white shadow-[0_10px_22px_rgba(14,123,193,0.25)]">
+              <Camera className="h-6 w-6" strokeWidth={1.9} />
+            </span>
+            <span className="mt-3 text-[14px] font-extrabold text-[#14213D]">{starting ? "Opening camera…" : "Take a photo"}</span>
+            <span className="mt-1 text-[11.5px] font-medium leading-4 text-[#667889]">Use this device&apos;s camera</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => uploadInputRef.current?.click()}
+            className="photo-option flex flex-col items-center justify-center rounded-[20px] border border-dashed border-[#0E7BC1]/45 bg-[#F6FCFF] px-3 py-6 text-center md:py-9"
+          >
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FFF0E7] text-[#F26A21] shadow-[0_10px_22px_rgba(242,106,33,0.16)]">
+              <ImageUp className="h-6 w-6" strokeWidth={1.9} />
+            </span>
+            <span className="mt-3 text-[14px] font-extrabold text-[#14213D]">Upload a photo</span>
+            <span className="mt-1 text-[11.5px] font-medium leading-4 text-[#667889]">From gallery or files</span>
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-3 flex items-start gap-2 rounded-[14px] border border-[#C94B43]/25 bg-[#FFF0EF] px-3 py-2.5" role="alert">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#C94B43]" strokeWidth={2} />
+          <p className="text-[12px] font-semibold leading-5 text-[#C94B43]">{error}</p>
+        </div>
+      )}
+
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(event) => {
+          void handleFile(event.target.files?.[0]);
+          event.target.value = "";
+        }}
+      />
+      <input
+        ref={captureInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(event) => {
+          void handleFile(event.target.files?.[0]);
+          event.target.value = "";
+        }}
+      />
+    </section>
+  );
+}
+
 function BodyScannerMeasureScreen({
+  photo,
+  onPhotoChange,
   onBack,
   onContinue,
 }: {
+  photo: string | null;
+  onPhotoChange: (photo: string | null) => void;
   onBack: () => void;
   onContinue: () => void;
 }) {
@@ -2284,20 +2852,15 @@ function BodyScannerMeasureScreen({
     );
   };
 
-  const heightMeasurement = measurements.find((measurement) => measurement.key === "height") ?? defaultScannerMeasurements[0];
-  const shoulderMeasurement = measurements.find((measurement) => measurement.key === "shoulder") ?? defaultScannerMeasurements[1];
-  const sleeveMeasurement = measurements.find((measurement) => measurement.key === "sleeve") ?? defaultScannerMeasurements[4];
-  const waistMeasurement = measurements.find((measurement) => measurement.key === "waist") ?? defaultScannerMeasurements[3];
-
   return (
-    <PhoneFrame contentClassName="flex h-full flex-col px-6 pb-0 pt-14">
+    <PhoneFrame contentClassName="flex h-full flex-col px-5 pb-0 pt-14 md:px-10 md:pt-8">
       <header className="shrink-0 bg-[#FCFEFF] pb-4">
         <div className="grid grid-cols-[42px_1fr_42px] items-center">
           <button
             type="button"
             onClick={onBack}
             className="flex h-10 w-10 items-center justify-center rounded-full border border-[#DDEBF2] bg-white text-[#14213D] shadow-[0_6px_16px_rgba(6,27,58,0.07)] transition hover:bg-[#F6FCFF]"
-            aria-label="Go back to scanner screen"
+            aria-label="Go back to scan guidance"
           >
             <ArrowLeft className="h-5 w-5" strokeWidth={1.8} />
           </button>
@@ -2318,143 +2881,64 @@ function BodyScannerMeasureScreen({
         className="min-h-0 flex-1 overflow-y-auto pb-5 pr-1 [&::-webkit-scrollbar]:hidden"
         style={{ scrollbarWidth: "none" }}
       >
-        <div className="pt-2 text-center">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-[#15A9D6]">
-            Scan Complete
-          </p>
-          <h1
-            className="mt-1 text-[30px] font-semibold leading-tight text-[#14213D]"
-            style={{ fontFamily: '"DM Serif Display", serif' }}
-          >
-            Review &amp; Adjust Fit
-          </h1>
-          <p className="mt-1 text-[13px] leading-5 text-[#667889]">
-            Scanner estimates are ready. Adjust any wrong value before selecting fabric.
+        <div className="pt-1 text-center">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-[#15A9D6]">Body scan</p>
+          <h1 className="mt-1 text-[28px] leading-tight text-[#14213D] md:text-[34px]">Your photo &amp; measurements</h1>
+          <p className="mx-auto mt-1 max-w-[520px] text-[13px] leading-5 text-[#667889]">
+            Take or upload a full-body photo, then check each measurement below before choosing your fabric.
           </p>
         </div>
 
-        <div className="mt-5 overflow-hidden rounded-[26px] border border-[#DDEBF2] bg-white shadow-[0_14px_32px_rgba(6,27,58,0.08)]">
-          <div className="relative overflow-hidden bg-[linear-gradient(180deg,#F6FCFF,#FFF8EF)]">
-            <div className="relative h-[300px] overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(242,106,33,0.10),transparent_36%),radial-gradient(circle_at_50%_8%,rgba(21,169,214,0.12),transparent_30%)]" />
+        <div className="mt-5 grid items-start gap-4 md:grid-cols-2 md:gap-6">
+          <BodyPhotoCapture photo={photo} onPhotoChange={onPhotoChange} />
 
-              <div className="absolute left-8 right-8 top-7 bottom-6 rounded-[30px] border border-dashed border-[#15A9D6]/45" />
-              <div className="absolute left-8 top-7 h-7 w-7 border-l-2 border-t-2 border-[#15A9D6]" />
-              <div className="absolute right-8 top-7 h-7 w-7 border-r-2 border-t-2 border-[#15A9D6]" />
-              <div className="absolute bottom-6 left-8 h-7 w-7 border-b-2 border-l-2 border-[#F26A21]" />
-              <div className="absolute bottom-6 right-8 h-7 w-7 border-b-2 border-r-2 border-[#F26A21]" />
-
-              <img
-                src="/assets/login-screen.png"
-                alt="Standing model scanned measurements"
-                className="relative z-10 mx-auto h-full w-[70%] object-contain object-center"
-                loading="eager"
-                decoding="async"
-                draggable={false}
-              />
-
-              <div className="absolute left-4 top-4 z-30 flex items-center gap-2 rounded-full bg-white/92 px-3 py-1.5 shadow-[0_8px_18px_rgba(6,27,58,0.08)] backdrop-blur">
-                <span className="h-2 w-2 rounded-full bg-[#78BE43]" />
-                <span className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-[#14213D]">Photo Captured</span>
-              </div>
-
-              <div className="absolute right-4 top-4 z-30 rounded-full bg-white/94 px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.12em] text-[#0E7BC1] shadow-[0_8px_18px_rgba(6,27,58,0.08)] backdrop-blur">
-                Height {formatHeightDisplay(heightMeasurement.value)}
-              </div>
-
-              <div className="scanner-line absolute left-14 right-14 top-1/2 z-20 h-px bg-[#15A9D6]/35" />
-
-              <div className="absolute bottom-4 left-1/2 z-30 -translate-x-1/2 rounded-full bg-[#14213D] px-4 py-2 text-[9px] font-extrabold uppercase tracking-[0.14em] text-white shadow-[0_10px_20px_rgba(6,27,58,0.18)]">
-                Photo Captured
-              </div>
-            </div>
-
-            <div className="border-t border-[#E9F4F8] bg-white px-4 py-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="space-y-4">
+            <section className="rounded-[24px] border border-[#DDEBF2] bg-white px-4 py-4 shadow-[0_12px_28px_rgba(6,27,58,0.06)] md:px-5">
+              <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#15A9D6]">
-                    Scan Summary
-                  </p>
-                  <p className="mt-1 text-[11px] font-medium text-[#667889]">
-                    Main measurements captured clearly.
-                  </p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#15A9D6]">Step 2</p>
+                  <h2 className="mt-0.5 text-[16px] text-[#14213D]">Your measurements</h2>
+                  <p className="mt-1 text-[11px] font-medium text-[#667889]">Tap + / − or type exact values.</p>
                 </div>
-                <span className="rounded-full bg-[#EAF8FE] px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.12em] text-[#0E7BC1]">
-                  Editable
-                </span>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMeasurements(defaultScannerMeasurements);
+                    setIsSaved(false);
+                  }}
+                  className="rounded-full border border-[#DDEBF2] bg-[#F6FCFF] px-3 py-2 text-[10px] font-bold text-[#14213D] shadow-none"
+                >
+                  Reset
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-[15px] border border-[#DDEBF2] bg-[#F6FCFF] px-3 py-3">
-                  <p className="text-[8px] font-extrabold uppercase tracking-[0.12em] text-[#94A3AD]">Height</p>
-                  <p className="mt-1 text-[15px] font-extrabold text-[#14213D]">{formatHeightDisplay(heightMeasurement.value)}</p>
-                </div>
-                <div className="rounded-[15px] border border-[#DDEBF2] bg-[#F6FCFF] px-3 py-3">
-                  <p className="text-[8px] font-extrabold uppercase tracking-[0.12em] text-[#94A3AD]">Shoulder</p>
-                  <p className="mt-1 text-[15px] font-extrabold text-[#14213D]">{formatMeasurementValue(shoulderMeasurement.value, shoulderMeasurement.unit)}</p>
-                </div>
-                <div className="rounded-[15px] border border-[#DDEBF2] bg-[#F6FCFF] px-3 py-3">
-                  <p className="text-[8px] font-extrabold uppercase tracking-[0.12em] text-[#94A3AD]">Sleeve</p>
-                  <p className="mt-1 text-[15px] font-extrabold text-[#14213D]">{formatMeasurementValue(sleeveMeasurement.value, sleeveMeasurement.unit)}</p>
-                </div>
-                <div className="rounded-[15px] border border-[#DDEBF2] bg-[#F6FCFF] px-3 py-3">
-                  <p className="text-[8px] font-extrabold uppercase tracking-[0.12em] text-[#94A3AD]">Waist</p>
-                  <p className="mt-1 text-[15px] font-extrabold text-[#14213D]">{formatMeasurementValue(waistMeasurement.value, waistMeasurement.unit)}</p>
-                </div>
+              <div className="mt-3 space-y-2.5">
+                {measurements.map((measurement) => (
+                  <MeasurementAdjustRow key={measurement.key} measurement={measurement} onChange={updateMeasurement} />
+                ))}
               </div>
-            </div>
-          </div>
+            </section>
 
-          <div className="bg-white px-4 py-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#15A9D6]">Editable Measurements</p>
-                <p className="mt-1 text-[11px] font-medium text-[#667889]">Tap + / − or type exact values.</p>
+            <div className="rounded-[18px] border border-[#DDEBF2] bg-white px-4 py-4 shadow-[0_8px_18px_rgba(6,27,58,0.05)]">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-[#78BE43]" strokeWidth={2.2} />
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#15A9D6]">Shopkeeper control</p>
               </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setMeasurements(defaultScannerMeasurements);
-                  setIsSaved(false);
-                }}
-                className="rounded-full border border-[#DDEBF2] bg-[#F6FCFF] px-3 py-2 text-[10px] font-bold text-[#14213D] shadow-none"
-              >
-                Reset
-              </button>
-            </div>
-
-            <div className="mt-3 space-y-2.5">
-              {measurements.map((measurement) => (
-                <MeasurementAdjustRow
-                  key={measurement.key}
-                  measurement={measurement}
-                  onChange={updateMeasurement}
-                />
-              ))}
+              <p className="mt-2 text-[12px] font-medium leading-5 text-[#667889]">
+                The shopkeeper can correct any value here before the order continues.
+              </p>
             </div>
           </div>
-        </div>
-
-        <div className="mt-4 rounded-[18px] border border-[#DDEBF2] bg-white px-4 py-4 shadow-[0_8px_18px_rgba(6,27,58,0.05)]">
-          <div className="flex items-center gap-2">
-            <Check className="h-4 w-4 text-[#78BE43]" strokeWidth={2.2} />
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#15A9D6]">
-              Shopkeeper Control
-            </p>
-          </div>
-          <p className="mt-2 text-[12px] font-medium leading-5 text-[#667889]">
-            If scanner reads any value incorrectly, shopkeeper can correct it here before the order flow continues.
-          </p>
         </div>
       </section>
 
       <footer className="sticky bottom-0 shrink-0 border-t border-[#E9F4F8] bg-[#FCFEFF]/95 px-1 pb-5 pt-4 backdrop-blur">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="mx-auto grid max-w-[560px] grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => setIsSaved(true)}
-            className="flex h-[40px] items-center justify-center rounded-[14px] border border-[#15A9D6]/35 bg-white text-[12px] font-semibold text-[#0E7BC1] shadow-[0_8px_18px_rgba(6,27,58,0.06)]"
+            className="flex h-[40px] items-center justify-center rounded-[14px] border border-[#0E7BC1]/35 bg-white text-[12px] font-semibold text-[#0E7BC1] shadow-[0_8px_18px_rgba(6,27,58,0.06)]"
           >
             {isSaved ? "Adjusted" : "Save Adjustments"}
           </button>
